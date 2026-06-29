@@ -29,3 +29,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# WordPress companion plugin (delivered as a zip, not part of this app)
+wordpress-plugin/

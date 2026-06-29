@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Server,
   ArrowRightLeft,
@@ -9,12 +10,18 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  LogIn,
+  Trash2,
 } from "lucide-react";
+import { useAuth } from "./AuthProvider";
+import { formatBytes } from "@/lib/limits";
+import type { SavedConnection } from "@/lib/wordpress";
 
 interface TransferState {
   status: "idle" | "transferring" | "success" | "error";
   message: string;
   bytesTransferred?: number;
+  limitExceeded?: boolean;
 }
 
 function PasswordInput({
@@ -37,12 +44,12 @@ function PasswordInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-4 py-3 bg-surface border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 pr-10"
+        className="w-full px-4 py-3 bg-white dark:bg-surface border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 pr-10"
       />
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
@@ -51,6 +58,8 @@ function PasswordInput({
 }
 
 export default function TransferForm() {
+  const { user, isLoading: authLoading } = useAuth();
+
   const [sourceHost, setSourceHost] = useState("");
   const [sourceUser, setSourceUser] = useState("");
   const [sourcePass, setSourcePass] = useState("");
@@ -61,15 +70,95 @@ export default function TransferForm() {
   const [destPass, setDestPass] = useState("");
   const [destPath, setDestPath] = useState("");
 
+  const [connections, setConnections] = useState<SavedConnection[]>([]);
+  const [sourceSavedId, setSourceSavedId] = useState("");
+  const [destSavedId, setDestSavedId] = useState("");
+  const [saveSource, setSaveSource] = useState(false);
+  const [sourceLabel, setSourceLabel] = useState("");
+  const [saveDest, setSaveDest] = useState(false);
+  const [destLabel, setDestLabel] = useState("");
+
   const [transfer, setTransfer] = useState<TransferState>({
     status: "idle",
     message: "",
   });
 
+  useEffect(() => {
+    if (!user) {
+      setConnections([]);
+      return;
+    }
+    fetch("/api/connections")
+      .then((res) => res.json())
+      .then((data) => setConnections(data.connections ?? []))
+      .catch(() => {});
+  }, [user]);
+
+  const applySaved = (role: "source" | "destination", id: string) => {
+    const conn = connections.find((c) => c.id === id);
+    if (!conn) return;
+    if (role === "source") {
+      setSourceHost(conn.host);
+      setSourceUser(conn.user);
+      setSourcePass(conn.password);
+      setSourcePath(conn.path);
+    } else {
+      setDestHost(conn.host);
+      setDestUser(conn.user);
+      setDestPass(conn.password);
+      setDestPath(conn.path);
+    }
+  };
+
+  const deleteSaved = async (role: "source" | "destination", id: string) => {
+    setConnections((prev) => prev.filter((c) => c.id !== id));
+    if (role === "source") setSourceSavedId("");
+    else setDestSavedId("");
+    try {
+      await fetch(`/api/connections/${id}`, { method: "DELETE" });
+    } catch {
+      /* best effort */
+    }
+  };
+
+  const saveServer = async (
+    role: "source" | "destination",
+    label: string,
+    host: string,
+    user: string,
+    password: string,
+    path: string
+  ) => {
+    try {
+      const res = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, role, host, user, password, path }),
+      });
+      const data = await res.json();
+      if (data.connection) {
+        setConnections((prev) => [...prev, data.connection]);
+      }
+    } catch {
+      /* best effort */
+    }
+  };
+
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setTransfer({ status: "transferring", message: "Connecting to servers..." });
+
+    if (saveSource && sourceLabel) {
+      saveServer("source", sourceLabel, sourceHost, sourceUser, sourcePass, sourcePath);
+      setSaveSource(false);
+      setSourceLabel("");
+    }
+    if (saveDest && destLabel) {
+      saveServer("destination", destLabel, destHost, destUser, destPass, destPath);
+      setSaveDest(false);
+      setDestLabel("");
+    }
 
     try {
       const res = await fetch("/api/transfer", {
@@ -103,6 +192,7 @@ export default function TransferForm() {
         setTransfer({
           status: "error",
           message: data.error || "Transfer failed. Check your credentials and paths.",
+          limitExceeded: data.code === "LIMIT_EXCEEDED",
         });
       }
     } catch {
@@ -113,29 +203,50 @@ export default function TransferForm() {
     }
   };
 
-  const formatBytes = (bytes: number) => {
-    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + " GB";
-    if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + " MB";
-    if (bytes >= 1024) return (bytes / 1024).toFixed(2) + " KB";
-    return bytes + " bytes";
-  };
-
   const inputClass =
-    "w-full px-4 py-3 bg-surface border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30";
+    "w-full px-4 py-3 bg-white dark:bg-surface border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30";
 
   return (
     <section id="transfer" className="py-24 px-6">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
             Start a <span className="gradient-text">Transfer</span>
           </h2>
-          <p className="text-slate-400 max-w-xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Enter the FTP credentials for both servers. We connect, stream, and
-            confirm. Your credentials are used in-memory only and never stored.
+            confirm. Optionally save a server to reuse it on future transfers
+            — saved credentials are encrypted at rest.
           </p>
         </div>
 
+        {!authLoading && !user && (
+          <div className="glass-card rounded-2xl p-8 text-center">
+            <LogIn className="w-8 h-8 text-primary-light mx-auto mb-3" />
+            <p className="text-slate-900 dark:text-white font-medium mb-1">
+              Log in to start a transfer
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              AirFTP requires a free account to run transfers.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Link
+                href="/login"
+                className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 hover:border-primary/50 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl transition-colors"
+              >
+                Log In
+              </Link>
+              <Link
+                href="/register"
+                className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!authLoading && user && (
         <form onSubmit={handleTransfer}>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {/* Source Server */}
@@ -145,7 +256,7 @@ export default function TransferForm() {
                   <Server className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     Source Server
                   </h3>
                   <p className="text-xs text-slate-500">Copy FROM here</p>
@@ -153,10 +264,50 @@ export default function TransferForm() {
               </div>
 
               <div className="space-y-4">
+                {connections.some((c) => c.role === "source") && (
+                  <div>
+                    <label
+                      htmlFor="srcSaved"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      Saved Servers
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="srcSaved"
+                        value={sourceSavedId}
+                        onChange={(e) => {
+                          setSourceSavedId(e.target.value);
+                          if (e.target.value) applySaved("source", e.target.value);
+                        }}
+                        className={inputClass}
+                      >
+                        <option value="">Enter manually...</option>
+                        {connections
+                          .filter((c) => c.role === "source")
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
+                            </option>
+                          ))}
+                      </select>
+                      {sourceSavedId && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSaved("source", sourceSavedId)}
+                          className="shrink-0 text-slate-500 hover:text-red-500"
+                          title="Remove saved server"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label
                     htmlFor="srcHost"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     FTP Host
                   </label>
@@ -173,7 +324,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcUser"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Username
                   </label>
@@ -190,7 +341,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcPass"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Password
                   </label>
@@ -204,7 +355,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcPath"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     File Path
                   </label>
@@ -218,6 +369,27 @@ export default function TransferForm() {
                     required
                   />
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    id="saveSource"
+                    type="checkbox"
+                    checked={saveSource}
+                    onChange={(e) => setSaveSource(e.target.checked)}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <label htmlFor="saveSource" className="text-sm text-slate-600 dark:text-slate-400">
+                    Save this server for next time
+                  </label>
+                </div>
+                {saveSource && (
+                  <input
+                    type="text"
+                    value={sourceLabel}
+                    onChange={(e) => setSourceLabel(e.target.value)}
+                    placeholder="Label (e.g. Production Backup)"
+                    className={inputClass}
+                  />
+                )}
               </div>
             </div>
 
@@ -228,7 +400,7 @@ export default function TransferForm() {
                   <Server className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     Destination Server
                   </h3>
                   <p className="text-xs text-slate-500">Send TO here</p>
@@ -236,10 +408,50 @@ export default function TransferForm() {
               </div>
 
               <div className="space-y-4">
+                {connections.some((c) => c.role === "destination") && (
+                  <div>
+                    <label
+                      htmlFor="dstSaved"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      Saved Servers
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="dstSaved"
+                        value={destSavedId}
+                        onChange={(e) => {
+                          setDestSavedId(e.target.value);
+                          if (e.target.value) applySaved("destination", e.target.value);
+                        }}
+                        className={inputClass}
+                      >
+                        <option value="">Enter manually...</option>
+                        {connections
+                          .filter((c) => c.role === "destination")
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
+                            </option>
+                          ))}
+                      </select>
+                      {destSavedId && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSaved("destination", destSavedId)}
+                          className="shrink-0 text-slate-500 hover:text-red-500"
+                          title="Remove saved server"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label
                     htmlFor="dstHost"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     FTP Host
                   </label>
@@ -256,7 +468,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstUser"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Username
                   </label>
@@ -273,7 +485,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstPass"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Password
                   </label>
@@ -287,7 +499,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstPath"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Destination Path
                   </label>
@@ -301,12 +513,33 @@ export default function TransferForm() {
                     required
                   />
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    id="saveDest"
+                    type="checkbox"
+                    checked={saveDest}
+                    onChange={(e) => setSaveDest(e.target.checked)}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <label htmlFor="saveDest" className="text-sm text-slate-600 dark:text-slate-400">
+                    Save this server for next time
+                  </label>
+                </div>
+                {saveDest && (
+                  <input
+                    type="text"
+                    value={destLabel}
+                    onChange={(e) => setDestLabel(e.target.value)}
+                    placeholder="Label (e.g. CDN Origin)"
+                    className={inputClass}
+                  />
+                )}
               </div>
             </div>
           </div>
 
           {/* Transfer Arrow + Button */}
-          <div className="flex justify-center mb-8">
+          <div className="flex flex-col items-center gap-3 mb-8">
             <button
               type="submit"
               disabled={transfer.status === "transferring"}
@@ -324,15 +557,19 @@ export default function TransferForm() {
                 </>
               )}
             </button>
+            <p className="text-xs text-slate-500">
+              {user?.isPro ? "Pro: up to 10GB per file" : "Free: up to 800MB per file"}
+            </p>
           </div>
         </form>
+        )}
 
         {/* Status Display */}
         {transfer.status === "transferring" && (
           <div className="glass-card rounded-2xl p-6 text-center">
             <Loader2 className="w-8 h-8 text-primary-light animate-spin mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">Transfer in Progress</p>
-            <p className="text-sm text-slate-400">
+            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer in Progress</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Streaming data directly between servers. This may take several
               minutes for large files. You can keep this tab open or check back
               later.
@@ -343,10 +580,10 @@ export default function TransferForm() {
         {transfer.status === "success" && (
           <div className="glass-card rounded-2xl p-6 text-center border-emerald-500/30">
             <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">Transfer Complete</p>
-            <p className="text-sm text-slate-400 mb-2">{transfer.message}</p>
+            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Complete</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{transfer.message}</p>
             {transfer.bytesTransferred && (
-              <p className="text-lg font-mono text-emerald-400">
+              <p className="text-lg font-mono text-emerald-600 dark:text-emerald-400">
                 {formatBytes(transfer.bytesTransferred)} transferred
               </p>
             )}
@@ -356,8 +593,13 @@ export default function TransferForm() {
         {transfer.status === "error" && (
           <div className="glass-card rounded-2xl p-6 text-center border-red-500/30">
             <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">Transfer Failed</p>
-            <p className="text-sm text-red-300">{transfer.message}</p>
+            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Failed</p>
+            <p className="text-sm text-red-600 dark:text-red-300 mb-2">{transfer.message}</p>
+            {transfer.limitExceeded && (
+              <a href="#pricing" className="text-sm text-primary-light hover:underline">
+                Upgrade to Pro for 10GB transfers →
+              </a>
+            )}
           </div>
         )}
       </div>

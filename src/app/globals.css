@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #6366f1;
   --color-primary-dark: #4f46e5;
@@ -16,6 +18,11 @@ html {
 }
 
 body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.dark body {
   background: #020617;
   color: #e2e8f0;
 }
@@ -55,9 +62,13 @@ body {
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.6);
+  background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(99, 102, 241, 0.15);
+}
+
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.6);
 }
 
 .hero-gradient {

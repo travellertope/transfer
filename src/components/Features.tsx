@@ -50,13 +50,13 @@ const features = [
 
 export default function Features() {
   return (
-    <section id="features" className="py-24 px-6 bg-surface/50">
+    <section id="features" className="py-24 px-6 bg-slate-50 dark:bg-surface/50">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
             Built for <span className="gradient-text">Heavy Lifting</span>
           </h2>
-          <p className="text-slate-400 max-w-xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Every feature is designed around one goal: moving large files
             between servers as fast and reliably as possible.
           </p>
@@ -71,10 +71,10 @@ export default function Features() {
               <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4">
                 <feature.icon className="w-6 h-6 text-primary-light" />
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                 {feature.title}
               </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                 {feature.description}
               </p>
             </div>

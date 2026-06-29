@@ -34,10 +34,10 @@ export default function HowItWorks() {
     <section id="how-it-works" className="py-24 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
             How It <span className="gradient-text">Works</span>
           </h2>
-          <p className="text-slate-400 max-w-xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Four steps. No software to install. No files on your local machine.
           </p>
         </div>
@@ -55,10 +55,10 @@ export default function HowItWorks() {
                 <div className="text-xs text-primary-light font-mono mb-2">
                   STEP {i + 1}
                 </div>
-                <h3 className="text-lg font-semibold text-white mb-2">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
                   {step.title}
                 </h3>
-                <p className="text-sm text-slate-400">{step.description}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{step.description}</p>
               </div>
             </div>
           ))}

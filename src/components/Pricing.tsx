@@ -11,7 +11,7 @@ const plans = [
     icon: Sparkles,
     features: [
       "3 transfers per month",
-      "Up to 1GB per file",
+      "Up to 800MB per file",
       "Standard FTP",
       "Basic transfer logs",
     ],
@@ -57,13 +57,13 @@ const plans = [
 
 export default function Pricing() {
   return (
-    <section id="pricing" className="py-24 px-6 bg-surface/50">
+    <section id="pricing" className="py-24 px-6 bg-slate-50 dark:bg-surface/50">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
             Simple, Honest <span className="gradient-text">Pricing</span>
           </h2>
-          <p className="text-slate-400 max-w-xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Start free. Upgrade when you need more power. No surprise fees.
           </p>
         </div>
@@ -88,13 +88,13 @@ export default function Pricing() {
                 <plan.icon className="w-5 h-5 text-primary-light" />
               </div>
 
-              <h3 className="text-xl font-bold text-white mb-1">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">
                 {plan.name}
               </h3>
               <p className="text-sm text-slate-500 mb-4">{plan.description}</p>
 
               <div className="mb-6">
-                <span className="text-4xl font-bold text-white">
+                <span className="text-4xl font-bold text-slate-900 dark:text-white">
                   {plan.price}
                 </span>
                 <span className="text-slate-500 ml-1">{plan.period}</span>
@@ -104,7 +104,7 @@ export default function Pricing() {
                 {plan.features.map((feature, j) => (
                   <li key={j} className="flex items-start gap-2 text-sm">
                     <Check className="w-4 h-4 text-primary-light mt-0.5 shrink-0" />
-                    <span className="text-slate-300">{feature}</span>
+                    <span className="text-slate-700 dark:text-slate-300">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -113,7 +113,7 @@ export default function Pricing() {
                 className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
                   plan.highlight
                     ? "bg-primary hover:bg-primary-dark text-white"
-                    : "border border-slate-600 hover:border-primary/50 text-slate-300"
+                    : "border border-slate-300 dark:border-slate-600 hover:border-primary/50 text-slate-700 dark:text-slate-300"
                 }`}
               >
                 {plan.cta}
