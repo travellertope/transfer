@@ -1,6 +1,9 @@
 "use client";
 
-import { Check, Zap, Building2, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Check, Zap, Building2, Sparkles, Loader2 } from "lucide-react";
+import { useAuth } from "./AuthProvider";
 
 const plans = [
   {
@@ -56,6 +59,39 @@ const plans = [
 ];
 
 export default function Pricing() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const handlePlanClick = async (planName: string) => {
+    if (planName === "Enterprise") {
+      window.location.href = "mailto:sales@bluuhq.com?subject=AirFTP%20Enterprise";
+      return;
+    }
+
+    if (!user) {
+      router.push("/register");
+      return;
+    }
+
+    if (planName === "Free") {
+      router.push("/#transfer");
+      return;
+    }
+
+    if (planName === "Pro") {
+      if (user.isPro) return;
+      setCheckoutLoading(true);
+      try {
+        const res = await fetch("/api/billing/checkout", { method: "POST" });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+      } finally {
+        setCheckoutLoading(false);
+      }
+    }
+  };
+
   return (
     <section id="pricing" className="py-24 px-6 bg-slate-50 dark:bg-surface/50">
       <div className="max-w-5xl mx-auto">
@@ -110,13 +146,18 @@ export default function Pricing() {
               </ul>
 
               <button
-                className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 ${
+                onClick={() => handlePlanClick(plan.name)}
+                disabled={checkoutLoading && plan.name === "Pro"}
+                className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
                   plan.highlight
                     ? "bg-primary hover:bg-primary-dark text-white"
                     : "border border-slate-300 dark:border-slate-600 hover:border-primary/50 text-slate-700 dark:text-slate-300"
                 }`}
               >
-                {plan.cta}
+                {checkoutLoading && plan.name === "Pro" && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
+                {plan.name === "Pro" && user?.isPro ? "Current Plan" : plan.cta}
               </button>
             </div>
           ))}
