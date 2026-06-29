@@ -21,6 +21,12 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>;
+  resetPassword: (
+    login: string,
+    key: string,
+    password: string
+  ) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -70,8 +76,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const forgotPassword = useCallback(async (email: string) => {
+    const res = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    return { success: !!data.success, error: data.error };
+  }, []);
+
+  const resetPassword = useCallback(
+    async (login: string, key: string, password: string) => {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login, key, password }),
+      });
+      const data = await res.json();
+      if (data.success) setUser(data.user);
+      return { success: !!data.success, error: data.error };
+    },
+    []
+  );
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, isLoading, login, register, logout, forgotPassword, resetPassword }}
+    >
       {children}
     </AuthContext.Provider>
   );

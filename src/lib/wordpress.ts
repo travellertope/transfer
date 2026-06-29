@@ -60,6 +60,28 @@ export async function loginUser(
   return parseOrThrow<WpAuthResponse>(res);
 }
 
+export async function forgotPassword(email: string, redirectUrl: string): Promise<void> {
+  const res = await fetch(wpUrl("/forgot-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, redirectUrl }),
+  });
+  await parseOrThrow(res);
+}
+
+export async function resetPassword(
+  login: string,
+  key: string,
+  password: string
+): Promise<WpAuthResponse> {
+  const res = await fetch(wpUrl("/reset-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login, key, password }),
+  });
+  return parseOrThrow<WpAuthResponse>(res);
+}
+
 export async function validateToken(token: string): Promise<WpUser | null> {
   try {
     const res = await fetch(wpUrl("/validate"), {
