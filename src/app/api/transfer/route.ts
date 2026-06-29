@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as ftp from "basic-ftp";
-import { Writable, Readable } from "stream";
+import { PassThrough } from "stream";
+import { getSessionUser } from "@/lib/session";
+import { limitForUser, formatBytes } from "@/lib/limits";
 
 interface ServerConfig {
   host: string;
@@ -14,6 +16,14 @@ export async function POST(req: NextRequest) {
   let destClient: ftp.Client | null = null;
 
   try {
+    const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "You must be logged in to start a transfer." },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const source: ServerConfig = body.source;
     const destination: ServerConfig = body.destination;
@@ -42,7 +52,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Step 1: Connect to source FTP and download into a buffer stream ---
+    // --- Step 1: Connect to source FTP and check the file size against the tier limit ---
     sourceClient = new ftp.Client();
     sourceClient.ftp.verbose = false;
     await sourceClient.access({
@@ -52,23 +62,24 @@ export async function POST(req: NextRequest) {
       secure: false,
     });
 
-    // Collect data from source into chunks
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
+    const fileSize = await sourceClient.size(source.path);
+    const limit = limitForUser(user.isPro);
+    if (fileSize > limit) {
+      sourceClient.close();
+      sourceClient = null;
+      return NextResponse.json(
+        {
+          success: false,
+          code: "LIMIT_EXCEEDED",
+          error: `File is ${formatBytes(fileSize)}, which exceeds your ${
+            user.isPro ? "Pro" : "Free"
+          } limit of ${formatBytes(limit)}.`,
+        },
+        { status: 403 }
+      );
+    }
 
-    const writableCollector = new Writable({
-      write(chunk: Buffer, _encoding, callback) {
-        chunks.push(chunk);
-        totalBytes += chunk.length;
-        callback();
-      },
-    });
-
-    await sourceClient.downloadTo(writableCollector, source.path);
-    sourceClient.close();
-    sourceClient = null;
-
-    // --- Step 2: Connect to destination FTP and upload from collected data ---
+    // --- Step 2: Connect to destination FTP and stream source -> destination concurrently ---
     destClient = new ftp.Client();
     destClient.ftp.verbose = false;
     await destClient.access({
@@ -78,7 +89,6 @@ export async function POST(req: NextRequest) {
       secure: false,
     });
 
-    // Ensure the destination directory exists
     const destDir = destination.path.substring(
       0,
       destination.path.lastIndexOf("/")
@@ -87,25 +97,25 @@ export async function POST(req: NextRequest) {
       await destClient.ensureDir(destDir);
     }
 
-    // Create a readable stream from collected chunks
-    const readableUpload = new Readable({
-      read() {
-        for (const chunk of chunks) {
-          this.push(chunk);
-        }
-        this.push(null);
-      },
+    const pipe = new PassThrough();
+    let totalBytes = 0;
+    pipe.on("data", (chunk: Buffer) => {
+      totalBytes += chunk.length;
     });
 
-    await destClient.uploadFrom(readableUpload, destination.path);
+    await Promise.all([
+      sourceClient.downloadTo(pipe, source.path),
+      destClient.uploadFrom(pipe, destination.path),
+    ]);
+
+    sourceClient.close();
+    sourceClient = null;
     destClient.close();
     destClient = null;
 
-    const gbTransferred = (totalBytes / 1073741824).toFixed(2);
-
     return NextResponse.json({
       success: true,
-      message: `Transfer complete. ${gbTransferred} GB streamed from source to destination.`,
+      message: `Transfer complete. ${formatBytes(totalBytes)} streamed from source to destination.`,
       bytesTransferred: totalBytes,
     });
   } catch (err: unknown) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Server,
   ArrowRightLeft,
@@ -9,12 +10,16 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  LogIn,
 } from "lucide-react";
+import { useAuth } from "./AuthProvider";
+import { formatBytes } from "@/lib/limits";
 
 interface TransferState {
   status: "idle" | "transferring" | "success" | "error";
   message: string;
   bytesTransferred?: number;
+  limitExceeded?: boolean;
 }
 
 function PasswordInput({
@@ -51,6 +56,8 @@ function PasswordInput({
 }
 
 export default function TransferForm() {
+  const { user, isLoading: authLoading } = useAuth();
+
   const [sourceHost, setSourceHost] = useState("");
   const [sourceUser, setSourceUser] = useState("");
   const [sourcePass, setSourcePass] = useState("");
@@ -103,6 +110,7 @@ export default function TransferForm() {
         setTransfer({
           status: "error",
           message: data.error || "Transfer failed. Check your credentials and paths.",
+          limitExceeded: data.code === "LIMIT_EXCEEDED",
         });
       }
     } catch {
@@ -111,13 +119,6 @@ export default function TransferForm() {
         message: "Network error. Please try again.",
       });
     }
-  };
-
-  const formatBytes = (bytes: number) => {
-    if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + " GB";
-    if (bytes >= 1048576) return (bytes / 1048576).toFixed(2) + " MB";
-    if (bytes >= 1024) return (bytes / 1024).toFixed(2) + " KB";
-    return bytes + " bytes";
   };
 
   const inputClass =
@@ -136,6 +137,33 @@ export default function TransferForm() {
           </p>
         </div>
 
+        {!authLoading && !user && (
+          <div className="glass-card rounded-2xl p-8 text-center">
+            <LogIn className="w-8 h-8 text-primary-light mx-auto mb-3" />
+            <p className="text-slate-900 dark:text-white font-medium mb-1">
+              Log in to start a transfer
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              AirFTP requires a free account to run transfers.
+            </p>
+            <div className="flex justify-center gap-3">
+              <Link
+                href="/login"
+                className="px-5 py-2.5 border border-slate-300 dark:border-slate-600 hover:border-primary/50 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-xl transition-colors"
+              >
+                Log In
+              </Link>
+              <Link
+                href="/register"
+                className="px-5 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-xl transition-colors"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!authLoading && user && (
         <form onSubmit={handleTransfer}>
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             {/* Source Server */}
@@ -306,7 +334,7 @@ export default function TransferForm() {
           </div>
 
           {/* Transfer Arrow + Button */}
-          <div className="flex justify-center mb-8">
+          <div className="flex flex-col items-center gap-3 mb-8">
             <button
               type="submit"
               disabled={transfer.status === "transferring"}
@@ -324,8 +352,12 @@ export default function TransferForm() {
                 </>
               )}
             </button>
+            <p className="text-xs text-slate-500">
+              {user?.isPro ? "Pro: up to 10GB per file" : "Free: up to 800MB per file"}
+            </p>
           </div>
         </form>
+        )}
 
         {/* Status Display */}
         {transfer.status === "transferring" && (
@@ -357,7 +389,12 @@ export default function TransferForm() {
           <div className="glass-card rounded-2xl p-6 text-center border-red-500/30">
             <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
             <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Failed</p>
-            <p className="text-sm text-red-600 dark:text-red-300">{transfer.message}</p>
+            <p className="text-sm text-red-600 dark:text-red-300 mb-2">{transfer.message}</p>
+            {transfer.limitExceeded && (
+              <a href="#pricing" className="text-sm text-primary-light hover:underline">
+                Upgrade to Pro for 10GB transfers →
+              </a>
+            )}
           </div>
         )}
       </div>

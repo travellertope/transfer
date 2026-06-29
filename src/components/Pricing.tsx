@@ -11,7 +11,7 @@ const plans = [
     icon: Sparkles,
     features: [
       "3 transfers per month",
-      "Up to 1GB per file",
+      "Up to 800MB per file",
       "Standard FTP",
       "Basic transfer logs",
     ],
