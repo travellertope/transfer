@@ -37,12 +37,12 @@ function PasswordInput({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-4 py-3 bg-surface border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 pr-10"
+        className="w-full px-4 py-3 bg-white dark:bg-surface border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 pr-10"
       />
       <button
         type="button"
         onClick={() => setShow(!show)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
@@ -121,16 +121,16 @@ export default function TransferForm() {
   };
 
   const inputClass =
-    "w-full px-4 py-3 bg-surface border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30";
+    "w-full px-4 py-3 bg-white dark:bg-surface border border-slate-300 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30";
 
   return (
     <section id="transfer" className="py-24 px-6">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
             Start a <span className="gradient-text">Transfer</span>
           </h2>
-          <p className="text-slate-400 max-w-xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Enter the FTP credentials for both servers. We connect, stream, and
             confirm. Your credentials are used in-memory only and never stored.
           </p>
@@ -145,7 +145,7 @@ export default function TransferForm() {
                   <Server className="w-5 h-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     Source Server
                   </h3>
                   <p className="text-xs text-slate-500">Copy FROM here</p>
@@ -156,7 +156,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcHost"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     FTP Host
                   </label>
@@ -173,7 +173,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcUser"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Username
                   </label>
@@ -190,7 +190,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcPass"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Password
                   </label>
@@ -204,7 +204,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="srcPath"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     File Path
                   </label>
@@ -228,7 +228,7 @@ export default function TransferForm() {
                   <Server className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-white">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     Destination Server
                   </h3>
                   <p className="text-xs text-slate-500">Send TO here</p>
@@ -239,7 +239,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstHost"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     FTP Host
                   </label>
@@ -256,7 +256,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstUser"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Username
                   </label>
@@ -273,7 +273,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstPass"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Password
                   </label>
@@ -287,7 +287,7 @@ export default function TransferForm() {
                 <div>
                   <label
                     htmlFor="dstPath"
-                    className="block text-sm text-slate-400 mb-1"
+                    className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
                     Destination Path
                   </label>
@@ -331,8 +331,8 @@ export default function TransferForm() {
         {transfer.status === "transferring" && (
           <div className="glass-card rounded-2xl p-6 text-center">
             <Loader2 className="w-8 h-8 text-primary-light animate-spin mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">Transfer in Progress</p>
-            <p className="text-sm text-slate-400">
+            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer in Progress</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Streaming data directly between servers. This may take several
               minutes for large files. You can keep this tab open or check back
               later.
@@ -343,10 +343,10 @@ export default function TransferForm() {
         {transfer.status === "success" && (
           <div className="glass-card rounded-2xl p-6 text-center border-emerald-500/30">
             <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">Transfer Complete</p>
-            <p className="text-sm text-slate-400 mb-2">{transfer.message}</p>
+            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Complete</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{transfer.message}</p>
             {transfer.bytesTransferred && (
-              <p className="text-lg font-mono text-emerald-400">
+              <p className="text-lg font-mono text-emerald-600 dark:text-emerald-400">
                 {formatBytes(transfer.bytesTransferred)} transferred
               </p>
             )}
@@ -356,8 +356,8 @@ export default function TransferForm() {
         {transfer.status === "error" && (
           <div className="glass-card rounded-2xl p-6 text-center border-red-500/30">
             <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-            <p className="text-white font-medium mb-1">Transfer Failed</p>
-            <p className="text-sm text-red-300">{transfer.message}</p>
+            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Failed</p>
+            <p className="text-sm text-red-600 dark:text-red-300">{transfer.message}</p>
           </div>
         )}
       </div>

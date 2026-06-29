@@ -41,7 +41,7 @@ export default function FAQ() {
     <section id="faq" className="py-24 px-6">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
             Frequently Asked <span className="gradient-text">Questions</span>
           </h2>
         </div>
@@ -53,16 +53,16 @@ export default function FAQ() {
                 onClick={() => setOpen(open === i ? null : i)}
                 className="w-full flex items-center justify-between px-6 py-4 text-left"
               >
-                <span className="text-white font-medium pr-4">{faq.q}</span>
+                <span className="text-slate-900 dark:text-white font-medium pr-4">{faq.q}</span>
                 <ChevronDown
-                  className={`w-5 h-5 text-slate-400 shrink-0 transition-transform duration-200 ${
+                  className={`w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0 transition-transform duration-200 ${
                     open === i ? "rotate-180" : ""
                   }`}
                 />
               </button>
               {open === i && (
                 <div className="px-6 pb-4">
-                  <p className="text-sm text-slate-400 leading-relaxed">
+                  <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                     {faq.a}
                   </p>
                 </div>

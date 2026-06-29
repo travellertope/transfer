@@ -23,14 +23,14 @@ export default function Hero() {
         </div>
 
         {/* Headline */}
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 animate-slide-up">
+        <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-slate-900 dark:text-white animate-slide-up">
           Move Massive Files
           <br />
           <span className="gradient-text">Between Servers</span>
         </h1>
 
         {/* Subheadline */}
-        <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-10 animate-slide-up">
+        <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-10 animate-slide-up">
           Transfer multi-gigabyte files directly from one FTP server to another.
           No downloading to your machine. No storage limits. Just a direct
           stream that works while you do other things.
@@ -47,14 +47,14 @@ export default function Hero() {
           </a>
           <a
             href="#how-it-works"
-            className="px-8 py-4 border border-slate-600 hover:border-primary/50 text-slate-300 font-semibold rounded-xl transition-all duration-200"
+            className="px-8 py-4 border border-slate-300 dark:border-slate-600 hover:border-primary/50 text-slate-700 dark:text-slate-300 font-semibold rounded-xl transition-all duration-200"
           >
             See How It Works
           </a>
         </div>
 
         {/* Trust indicators */}
-        <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-500 animate-slide-up">
+        <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-500 dark:text-slate-500 animate-slide-up">
           <div className="flex items-center gap-2">
             <Server className="w-4 h-4 text-primary-light" />
             <span>3GB+ file support</span>
