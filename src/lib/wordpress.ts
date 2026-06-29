@@ -105,3 +105,21 @@ export async function deleteConnection(token: string, id: string): Promise<void>
   });
   await parseOrThrow(res);
 }
+
+export async function setUserPro(email: string, isPro: boolean): Promise<WpUser> {
+  const adminSecret = process.env.WORDPRESS_ADMIN_SECRET;
+  if (!adminSecret) {
+    throw new Error("WORDPRESS_ADMIN_SECRET environment variable is not set.");
+  }
+
+  const res = await fetch(wpUrl("/set-pro"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-AirFTP-Admin-Secret": adminSecret,
+    },
+    body: JSON.stringify({ email, isPro }),
+  });
+  const data = await parseOrThrow<{ user: WpUser }>(res);
+  return data.user;
+}
