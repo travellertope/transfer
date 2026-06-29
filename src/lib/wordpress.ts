@@ -10,6 +10,16 @@ interface WpAuthResponse {
   user: WpUser;
 }
 
+export interface SavedConnection {
+  id: string;
+  label: string;
+  role: "source" | "destination";
+  host: string;
+  user: string;
+  password: string;
+  path: string;
+}
+
 function wpUrl(path: string) {
   const base = process.env.WORDPRESS_URL;
   if (!base) {
@@ -63,4 +73,35 @@ export async function validateToken(token: string): Promise<WpUser | null> {
   } catch {
     return null;
   }
+}
+
+function authHeaders(token: string) {
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+}
+
+export async function listConnections(token: string): Promise<SavedConnection[]> {
+  const res = await fetch(wpUrl("/connections"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ connections: SavedConnection[] }>(res);
+  return data.connections;
+}
+
+export async function saveConnection(
+  token: string,
+  conn: Omit<SavedConnection, "id">
+): Promise<SavedConnection> {
+  const res = await fetch(wpUrl("/connections"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(conn),
+  });
+  const data = await parseOrThrow<{ connection: SavedConnection }>(res);
+  return data.connection;
+}
+
+export async function deleteConnection(token: string, id: string): Promise<void> {
+  const res = await fetch(wpUrl(`/connections/${id}`), {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  await parseOrThrow(res);
 }

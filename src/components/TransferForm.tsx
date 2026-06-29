@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Server,
@@ -11,9 +11,11 @@ import {
   Eye,
   EyeOff,
   LogIn,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { formatBytes } from "@/lib/limits";
+import type { SavedConnection } from "@/lib/wordpress";
 
 interface TransferState {
   status: "idle" | "transferring" | "success" | "error";
@@ -68,15 +70,95 @@ export default function TransferForm() {
   const [destPass, setDestPass] = useState("");
   const [destPath, setDestPath] = useState("");
 
+  const [connections, setConnections] = useState<SavedConnection[]>([]);
+  const [sourceSavedId, setSourceSavedId] = useState("");
+  const [destSavedId, setDestSavedId] = useState("");
+  const [saveSource, setSaveSource] = useState(false);
+  const [sourceLabel, setSourceLabel] = useState("");
+  const [saveDest, setSaveDest] = useState(false);
+  const [destLabel, setDestLabel] = useState("");
+
   const [transfer, setTransfer] = useState<TransferState>({
     status: "idle",
     message: "",
   });
 
+  useEffect(() => {
+    if (!user) {
+      setConnections([]);
+      return;
+    }
+    fetch("/api/connections")
+      .then((res) => res.json())
+      .then((data) => setConnections(data.connections ?? []))
+      .catch(() => {});
+  }, [user]);
+
+  const applySaved = (role: "source" | "destination", id: string) => {
+    const conn = connections.find((c) => c.id === id);
+    if (!conn) return;
+    if (role === "source") {
+      setSourceHost(conn.host);
+      setSourceUser(conn.user);
+      setSourcePass(conn.password);
+      setSourcePath(conn.path);
+    } else {
+      setDestHost(conn.host);
+      setDestUser(conn.user);
+      setDestPass(conn.password);
+      setDestPath(conn.path);
+    }
+  };
+
+  const deleteSaved = async (role: "source" | "destination", id: string) => {
+    setConnections((prev) => prev.filter((c) => c.id !== id));
+    if (role === "source") setSourceSavedId("");
+    else setDestSavedId("");
+    try {
+      await fetch(`/api/connections/${id}`, { method: "DELETE" });
+    } catch {
+      /* best effort */
+    }
+  };
+
+  const saveServer = async (
+    role: "source" | "destination",
+    label: string,
+    host: string,
+    user: string,
+    password: string,
+    path: string
+  ) => {
+    try {
+      const res = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, role, host, user, password, path }),
+      });
+      const data = await res.json();
+      if (data.connection) {
+        setConnections((prev) => [...prev, data.connection]);
+      }
+    } catch {
+      /* best effort */
+    }
+  };
+
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setTransfer({ status: "transferring", message: "Connecting to servers..." });
+
+    if (saveSource && sourceLabel) {
+      saveServer("source", sourceLabel, sourceHost, sourceUser, sourcePass, sourcePath);
+      setSaveSource(false);
+      setSourceLabel("");
+    }
+    if (saveDest && destLabel) {
+      saveServer("destination", destLabel, destHost, destUser, destPass, destPath);
+      setSaveDest(false);
+      setDestLabel("");
+    }
 
     try {
       const res = await fetch("/api/transfer", {
@@ -133,7 +215,8 @@ export default function TransferForm() {
           </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Enter the FTP credentials for both servers. We connect, stream, and
-            confirm. Your credentials are used in-memory only and never stored.
+            confirm. Optionally save a server to reuse it on future transfers
+            — saved credentials are encrypted at rest.
           </p>
         </div>
 
@@ -181,6 +264,46 @@ export default function TransferForm() {
               </div>
 
               <div className="space-y-4">
+                {connections.some((c) => c.role === "source") && (
+                  <div>
+                    <label
+                      htmlFor="srcSaved"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      Saved Servers
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="srcSaved"
+                        value={sourceSavedId}
+                        onChange={(e) => {
+                          setSourceSavedId(e.target.value);
+                          if (e.target.value) applySaved("source", e.target.value);
+                        }}
+                        className={inputClass}
+                      >
+                        <option value="">Enter manually...</option>
+                        {connections
+                          .filter((c) => c.role === "source")
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
+                            </option>
+                          ))}
+                      </select>
+                      {sourceSavedId && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSaved("source", sourceSavedId)}
+                          className="shrink-0 text-slate-500 hover:text-red-500"
+                          title="Remove saved server"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label
                     htmlFor="srcHost"
@@ -246,6 +369,27 @@ export default function TransferForm() {
                     required
                   />
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    id="saveSource"
+                    type="checkbox"
+                    checked={saveSource}
+                    onChange={(e) => setSaveSource(e.target.checked)}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <label htmlFor="saveSource" className="text-sm text-slate-600 dark:text-slate-400">
+                    Save this server for next time
+                  </label>
+                </div>
+                {saveSource && (
+                  <input
+                    type="text"
+                    value={sourceLabel}
+                    onChange={(e) => setSourceLabel(e.target.value)}
+                    placeholder="Label (e.g. Production Backup)"
+                    className={inputClass}
+                  />
+                )}
               </div>
             </div>
 
@@ -264,6 +408,46 @@ export default function TransferForm() {
               </div>
 
               <div className="space-y-4">
+                {connections.some((c) => c.role === "destination") && (
+                  <div>
+                    <label
+                      htmlFor="dstSaved"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      Saved Servers
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        id="dstSaved"
+                        value={destSavedId}
+                        onChange={(e) => {
+                          setDestSavedId(e.target.value);
+                          if (e.target.value) applySaved("destination", e.target.value);
+                        }}
+                        className={inputClass}
+                      >
+                        <option value="">Enter manually...</option>
+                        {connections
+                          .filter((c) => c.role === "destination")
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label}
+                            </option>
+                          ))}
+                      </select>
+                      {destSavedId && (
+                        <button
+                          type="button"
+                          onClick={() => deleteSaved("destination", destSavedId)}
+                          className="shrink-0 text-slate-500 hover:text-red-500"
+                          title="Remove saved server"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label
                     htmlFor="dstHost"
@@ -329,6 +513,27 @@ export default function TransferForm() {
                     required
                   />
                 </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    id="saveDest"
+                    type="checkbox"
+                    checked={saveDest}
+                    onChange={(e) => setSaveDest(e.target.checked)}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <label htmlFor="saveDest" className="text-sm text-slate-600 dark:text-slate-400">
+                    Save this server for next time
+                  </label>
+                </div>
+                {saveDest && (
+                  <input
+                    type="text"
+                    value={destLabel}
+                    onChange={(e) => setDestLabel(e.target.value)}
+                    placeholder="Label (e.g. CDN Origin)"
+                    className={inputClass}
+                  />
+                )}
               </div>
             </div>
           </div>

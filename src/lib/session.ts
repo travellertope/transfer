@@ -18,8 +18,12 @@ export function clearSessionCookie(res: NextResponse) {
   res.cookies.delete(SESSION_COOKIE);
 }
 
+export function getSessionToken(req: NextRequest): string | null {
+  return req.cookies.get(SESSION_COOKIE)?.value ?? null;
+}
+
 export async function getSessionUser(req: NextRequest): Promise<WpUser | null> {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const token = getSessionToken(req);
   if (!token) return null;
   return validateToken(token);
 }
