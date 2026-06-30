@@ -120,12 +120,66 @@ export async function saveConnection(
   return data.connection;
 }
 
+export async function updateConnection(
+  token: string,
+  id: string,
+  conn: Partial<Omit<SavedConnection, "id">>
+): Promise<SavedConnection> {
+  const res = await fetch(wpUrl(`/connections/${id}`), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(conn),
+  });
+  const data = await parseOrThrow<{ connection: SavedConnection }>(res);
+  return data.connection;
+}
+
 export async function deleteConnection(token: string, id: string): Promise<void> {
   const res = await fetch(wpUrl(`/connections/${id}`), {
     method: "DELETE",
     headers: authHeaders(token),
   });
   await parseOrThrow(res);
+}
+
+export interface TransferRecord {
+  id: string;
+  created_at: string;
+  source_host: string;
+  source_path: string;
+  dest_host: string;
+  dest_path: string;
+  bytes: number;
+  status: "success" | "failed";
+  error: string;
+}
+
+export async function listHistory(token: string): Promise<TransferRecord[]> {
+  const res = await fetch(wpUrl("/history"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ transfers: TransferRecord[] }>(res);
+  return data.transfers;
+}
+
+export async function addHistory(
+  token: string,
+  record: Omit<TransferRecord, "id" | "created_at">
+): Promise<TransferRecord> {
+  const body = {
+    sourceHost: record.source_host,
+    sourcePath: record.source_path,
+    destHost: record.dest_host,
+    destPath: record.dest_path,
+    bytes: record.bytes,
+    status: record.status,
+    error: record.error ?? "",
+  };
+  const res = await fetch(wpUrl("/history"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+  const data = await parseOrThrow<{ transfer: TransferRecord }>(res);
+  return data.transfer;
 }
 
 export async function setUserPro(email: string, isPro: boolean): Promise<WpUser> {

@@ -43,7 +43,7 @@ function ResetPasswordForm() {
     setLoading(false);
 
     if (result.success) {
-      router.push("/");
+      router.push("/dashboard");
     } else {
       setError(result.error || "Could not reset your password. The link may have expired.");
     }
