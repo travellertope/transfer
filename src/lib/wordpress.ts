@@ -182,6 +182,102 @@ export async function addHistory(
   return data.transfer;
 }
 
+export async function updateUser(
+  token: string,
+  fields: { name?: string; email?: string; currentPassword?: string; newPassword?: string }
+): Promise<WpUser> {
+  const res = await fetch(wpUrl("/user"), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(fields),
+  });
+  const data = await parseOrThrow<{ user: WpUser }>(res);
+  return data.user;
+}
+
+export interface ApiKey {
+  id: string;
+  label: string;
+  prefix: string;
+  created_at: string;
+}
+
+export async function listApiKeys(token: string): Promise<ApiKey[]> {
+  const res = await fetch(wpUrl("/api-keys"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ apiKeys: ApiKey[] }>(res);
+  return data.apiKeys;
+}
+
+export async function createApiKey(
+  token: string,
+  label: string
+): Promise<{ apiKey: ApiKey; fullKey: string }> {
+  const res = await fetch(wpUrl("/api-keys"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ label }),
+  });
+  return parseOrThrow<{ apiKey: ApiKey; fullKey: string }>(res);
+}
+
+export async function deleteApiKey(token: string, id: string): Promise<void> {
+  const res = await fetch(wpUrl(`/api-keys/${id}`), {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  await parseOrThrow(res);
+}
+
+export interface Webhook {
+  id: string;
+  label: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  created_at: string;
+}
+
+export async function listWebhooks(token: string): Promise<Webhook[]> {
+  const res = await fetch(wpUrl("/webhooks"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ webhooks: Webhook[] }>(res);
+  return data.webhooks;
+}
+
+export async function createWebhook(
+  token: string,
+  hook: Omit<Webhook, "id" | "created_at">
+): Promise<Webhook> {
+  const res = await fetch(wpUrl("/webhooks"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(hook),
+  });
+  const data = await parseOrThrow<{ webhook: Webhook }>(res);
+  return data.webhook;
+}
+
+export async function updateWebhook(
+  token: string,
+  id: string,
+  hook: Omit<Webhook, "id" | "created_at">
+): Promise<Webhook> {
+  const res = await fetch(wpUrl(`/webhooks/${id}`), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(hook),
+  });
+  const data = await parseOrThrow<{ webhook: Webhook }>(res);
+  return data.webhook;
+}
+
+export async function deleteWebhook(token: string, id: string): Promise<void> {
+  const res = await fetch(wpUrl(`/webhooks/${id}`), {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  await parseOrThrow(res);
+}
+
 export async function setUserPro(email: string, isPro: boolean): Promise<WpUser> {
   const adminSecret = process.env.WORDPRESS_ADMIN_SECRET;
   if (!adminSecret) {

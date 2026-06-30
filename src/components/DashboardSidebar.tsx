@@ -14,15 +14,25 @@ import {
   X,
   Sparkles,
   CreditCard,
+  Settings,
+  Key,
+  Webhook,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "./AuthProvider";
 
-const navItems = [
+const mainNav = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard, exact: true },
   { label: "New Transfer", href: "/dashboard/transfer", icon: ArrowUpDown, exact: false },
   { label: "Saved Servers", href: "/dashboard/servers", icon: Server, exact: false },
   { label: "History", href: "/dashboard/history", icon: History, exact: false },
+];
+
+const settingsNav = [
+  { label: "Account Settings", href: "/dashboard/settings", icon: Settings, exact: false },
+  { label: "Billing & Plan", href: "/dashboard/billing", icon: CreditCard, exact: false },
+  { label: "API Keys", href: "/dashboard/api-keys", icon: Key, exact: false },
+  { label: "Webhooks", href: "/dashboard/webhooks", icon: Webhook, exact: false },
 ];
 
 export default function DashboardSidebar() {
@@ -30,12 +40,6 @@ export default function DashboardSidebar() {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const openBillingPortal = async () => {
-    const res = await fetch("/api/billing/portal", { method: "POST" });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-  };
 
   const handleLogout = async () => {
     await logout();
@@ -59,7 +63,30 @@ export default function DashboardSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {mainNav.map((item) => {
+          const active = isActive(item.href, item.exact);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                active
+                  ? "bg-primary/10 text-primary-light"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <item.icon className="w-4 h-4 shrink-0" />
+              {item.label}
+            </Link>
+          );
+        })}
+
+        <div className="pt-3 pb-1">
+          <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">Settings</p>
+        </div>
+
+        {settingsNav.map((item) => {
           const active = isActive(item.href, item.exact);
           return (
             <Link
@@ -92,16 +119,6 @@ export default function DashboardSidebar() {
             </span>
           )}
         </div>
-
-        {user?.isPro && (
-          <button
-            onClick={openBillingPortal}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white transition-colors"
-          >
-            <CreditCard className="w-4 h-4 shrink-0" />
-            Manage Subscription
-          </button>
-        )}
 
         <div className="flex items-center gap-2">
           <button
