@@ -106,9 +106,17 @@ async function runJob(jobId: string): Promise<void> {
 
       const pipe = new PassThrough();
       let sessionBytes = 0;
+      let lastProgressUpdate = 0;
       pipe.on("data", (chunk: Buffer) => {
         sessionBytes += chunk.length;
-        updateJob(jobId, { bytesTransferred: resumeOffset + sessionBytes });
+        // The client only polls every couple of seconds — updating the job
+        // record on every single chunk (tens of thousands of times for a
+        // large file) is pure overhead. Throttle to a few times a second.
+        const now = Date.now();
+        if (now - lastProgressUpdate >= 250) {
+          lastProgressUpdate = now;
+          updateJob(jobId, { bytesTransferred: resumeOffset + sessionBytes });
+        }
       });
 
       await Promise.all([
