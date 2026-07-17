@@ -101,10 +101,7 @@ function airftp_handle_validate(WP_REST_Request $request) {
     $token = (string) $request->get_param('token');
 
     if (!$token) {
-        $auth_header = $request->get_header('authorization');
-        if ($auth_header && stripos($auth_header, 'Bearer ') === 0) {
-            $token = substr($auth_header, 7);
-        }
+        $token = airftp_extract_token($request);
     }
 
     if (!$token) {

@@ -33,12 +33,7 @@ add_action('rest_api_init', function () {
 });
 
 function airftp_authenticate_request(WP_REST_Request $request) {
-    $auth_header = $request->get_header('authorization');
-    $token = '';
-
-    if ($auth_header && stripos($auth_header, 'Bearer ') === 0) {
-        $token = substr($auth_header, 7);
-    }
+    $token = airftp_extract_token($request);
 
     if (!$token) {
         return new WP_Error('airftp_missing_token', 'No token provided.', ['status' => 401]);
