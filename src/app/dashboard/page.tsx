@@ -9,6 +9,7 @@ import {
   XCircle,
   Zap,
   ArrowRight,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import type { TransferRecord } from "@/lib/wordpress";
@@ -46,16 +47,27 @@ export default function DashboardPage() {
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [serverCount, setServerCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/history")
-        .then((r) => r.json())
-        .then((d) => setTransfers(d.transfers ?? [])),
-      fetch("/api/connections")
-        .then((r) => r.json())
-        .then((d) => setServerCount((d.connections ?? []).length)),
-    ]).finally(() => setLoading(false));
+    const loadHistory = async () => {
+      const res = await fetch("/api/history");
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Couldn't load your transfer history.");
+      setTransfers(d.transfers ?? []);
+    };
+    const loadConnections = async () => {
+      const res = await fetch("/api/connections");
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Couldn't load your saved servers.");
+      setServerCount((d.connections ?? []).length);
+    };
+
+    Promise.all([loadHistory(), loadConnections()])
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Couldn't load your dashboard data.");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const successful = transfers.filter((t) => t.status === "success");
@@ -77,6 +89,13 @@ export default function DashboardPage() {
           )}
         </p>
       </div>
+
+      {error && (
+        <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 mb-6">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
