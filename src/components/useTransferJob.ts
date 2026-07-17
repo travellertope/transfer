@@ -8,6 +8,7 @@ export interface TransferUiState {
   message: string;
   bytesTransferred?: number;
   totalBytes?: number | null;
+  bytesPerSecond?: number | null;
   limitExceeded?: boolean;
 }
 
@@ -83,6 +84,7 @@ export function useTransferJob() {
         message: job.message || (job.status === "connecting" ? "Connecting to servers…" : "Transferring…"),
         bytesTransferred: job.bytesTransferred,
         totalBytes: job.totalBytes,
+        bytesPerSecond: job.bytesPerSecond,
       });
       setTimeout(tick, POLL_INTERVAL_MS);
     };
@@ -119,6 +121,7 @@ export function useTransferJob() {
           message: "Transferring…",
           bytesTransferred: data.job.bytesTransferred,
           totalBytes: data.job.totalBytes,
+          bytesPerSecond: data.job.bytesPerSecond,
         });
         poll(data.job.id, generation);
       } catch {

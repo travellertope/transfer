@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, XCircle, Loader2, ArrowUpDown, RotateCw, AlertCircle } from "lucide-react";
 import type { TransferRecord } from "@/lib/wordpress";
-import { formatBytes } from "@/lib/limits";
+import { formatBytes, formatDuration, estimateSecondsRemaining } from "@/lib/limits";
 
 interface ActiveJob {
   id: string;
   status: "queued" | "connecting" | "transferring";
   bytesTransferred: number;
   totalBytes: number | null;
+  bytesPerSecond: number | null;
   error: string | null;
   message: string | null;
   sourceHost: string;
@@ -93,6 +94,7 @@ export default function HistoryPage() {
           status: data.job.status,
           bytesTransferred: data.job.bytesTransferred,
           totalBytes: data.job.totalBytes,
+          bytesPerSecond: data.job.bytesPerSecond,
           error: data.job.error,
           message: data.job.message,
           sourceHost: t.source_host,
@@ -153,6 +155,7 @@ export default function HistoryPage() {
                 job.totalBytes && job.totalBytes > 0
                   ? Math.min(100, Math.round((job.bytesTransferred / job.totalBytes) * 100))
                   : null;
+              const etaSeconds = estimateSecondsRemaining(job.bytesTransferred, job.totalBytes, job.bytesPerSecond);
               return (
                 <div key={job.id} className="px-5 py-4">
                   <div className="flex items-center gap-2 mb-1">
@@ -171,6 +174,13 @@ export default function HistoryPage() {
                     {formatBytes(job.bytesTransferred)}
                     {job.totalBytes ? ` / ${formatBytes(job.totalBytes)} (${pct}%)` : ""}
                   </p>
+                  {(job.bytesPerSecond || etaSeconds !== null) && (
+                    <p className="text-xs text-slate-500 mt-0.5 font-mono">
+                      {job.bytesPerSecond ? `${formatBytes(job.bytesPerSecond)}/s` : ""}
+                      {job.bytesPerSecond && etaSeconds !== null ? " · " : ""}
+                      {etaSeconds !== null ? `~${formatDuration(etaSeconds)} remaining` : ""}
+                    </p>
+                  )}
                 </div>
               );
             })}

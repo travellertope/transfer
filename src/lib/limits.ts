@@ -12,3 +12,21 @@ export function formatBytes(bytes: number) {
   if (bytes >= 1024) return (bytes / 1024).toFixed(2) + " KB";
   return bytes + " bytes";
 }
+
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "";
+  if (seconds < 5) return "a few seconds";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remMinutes = minutes % 60;
+  return remMinutes > 0 ? `${hours}h ${remMinutes}m` : `${hours}h`;
+}
+
+export function estimateSecondsRemaining(bytesTransferred: number, totalBytes: number | null, bytesPerSecond: number | null): number | null {
+  if (!bytesPerSecond || bytesPerSecond <= 0 || !totalBytes) return null;
+  const remaining = totalBytes - bytesTransferred;
+  if (remaining <= 0) return 0;
+  return remaining / bytesPerSecond;
+}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
 import { limitForUser, formatBytes, FREE_MONTHLY_TRANSFER_LIMIT } from "@/lib/limits";
 import { createTransferClient, type Protocol, type ServerConfig } from "@/lib/transferClients";
-import { createJob, updateJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
+import { createJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
 import { addHistory, listHistory } from "@/lib/wordpress";
 
@@ -12,6 +12,45 @@ function normalizeConfig(config: ServerConfig): ServerConfig {
     ...config,
     protocol: protocols.includes(config.protocol) ? config.protocol : "ftp",
   };
+}
+
+/**
+ * Writes the "in_progress" history record a transfer will live-update as it
+ * runs. This happens *before* the job is created at all — a transfer is
+ * never allowed to start without a corresponding history record already
+ * durably stored in WordPress, so a server restart mid-transfer can never
+ * make it disappear without a trace. Retries a couple of times to ride out
+ * a brief WP hiccup before giving up.
+ */
+async function writeInitialHistoryRecord(
+  token: string,
+  source: ServerConfig,
+  destination: ServerConfig
+): Promise<string> {
+  const attempts = 3;
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const record = await addHistory(token, {
+        source_host: source.host,
+        source_path: source.path,
+        dest_host: destination.host,
+        dest_path: destination.path,
+        bytes: 0,
+        status: "in_progress",
+        error: "",
+        source,
+        destination,
+      });
+      return record.id;
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 /** Active (non-terminal) transfers for the current user, e.g. for showing progress on the History page. */
@@ -113,6 +152,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let historyId: string;
+  try {
+    historyId = await writeInitialHistoryRecord(token, source, destination);
+  } catch {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Couldn't reach our records service to start the transfer. Please try again in a moment.",
+      },
+      { status: 503 }
+    );
+  }
+
   // From here the transfer runs in the background, independent of this
   // request — closing the tab, sleeping, or a flaky wifi connection no
   // longer kills it. The client polls GET /api/transfer/{id} for progress.
@@ -121,33 +173,11 @@ export async function POST(req: NextRequest) {
     wpToken: token,
     isPro: user.isPro,
     appOrigin: req.nextUrl.origin,
+    historyId,
     source,
     destination,
     totalBytes: fileSize,
   });
-
-  // Written up front (before the transfer does anything) so an interrupted
-  // job — server restart, crash — leaves a visible trace in History instead
-  // of vanishing with nothing ever recorded. Best-effort: if WP is briefly
-  // unreachable, the transfer still starts, and the worker just creates the
-  // record fresh on completion instead of updating this one.
-  try {
-    const record = await addHistory(token, {
-      source_host: source.host,
-      source_path: source.path,
-      dest_host: destination.host,
-      dest_path: destination.path,
-      bytes: 0,
-      status: "in_progress",
-      error: "",
-      source,
-      destination,
-    });
-    updateJob(job.id, { historyId: record.id });
-  } catch {
-    /* fall back to create-on-completion in the worker */
-  }
-
   enqueueJob(job.id);
 
   return NextResponse.json({ success: true, job: jobSnapshot(job) }, { status: 202 });

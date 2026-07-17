@@ -16,13 +16,15 @@ export interface TransferJob {
   isPro: boolean;
   /** The app's own origin (e.g. https://airftp.example.com), captured at job creation for building links in completion emails sent later from the background worker, which has no request of its own. */
   appOrigin: string;
-  /** WP history record id, set once the initial "in_progress" record is written, so the worker can update that same record on completion instead of creating a new one. Null if that initial write failed or hasn't happened yet — the worker falls back to creating a fresh record in that case. */
-  historyId: string | null;
+  /** WP history record id — the initial "in_progress" record is written before the job is ever created (see POST /api/transfer), so the worker can update that same record on completion instead of creating a new one. */
+  historyId: string;
   source: ServerConfig;
   destination: ServerConfig;
   status: JobStatus;
   bytesTransferred: number;
   totalBytes: number | null;
+  /** Recent throughput (bytes/sec over the last few seconds), for showing an ETA. Null until enough data has flowed to estimate it. */
+  bytesPerSecond: number | null;
   attempts: number;
   maxAttempts: number;
   error: string | null;
@@ -46,6 +48,7 @@ export function createJob(input: {
   wpToken: string;
   isPro: boolean;
   appOrigin: string;
+  historyId: string;
   source: ServerConfig;
   destination: ServerConfig;
   totalBytes: number;
@@ -57,12 +60,13 @@ export function createJob(input: {
     wpToken: input.wpToken,
     isPro: input.isPro,
     appOrigin: input.appOrigin,
-    historyId: null,
+    historyId: input.historyId,
     source: input.source,
     destination: input.destination,
     status: "queued",
     bytesTransferred: 0,
     totalBytes: input.totalBytes,
+    bytesPerSecond: null,
     attempts: 0,
     maxAttempts: 5,
     error: null,
@@ -100,6 +104,7 @@ export function jobSnapshot(job: TransferJob) {
     status: job.status,
     bytesTransferred: job.bytesTransferred,
     totalBytes: job.totalBytes,
+    bytesPerSecond: job.bytesPerSecond,
     attempts: job.attempts,
     error: job.error,
     message: job.message,
