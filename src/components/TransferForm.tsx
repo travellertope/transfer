@@ -60,12 +60,16 @@ function PasswordInput({
 export default function TransferForm() {
   const { user, isLoading: authLoading } = useAuth();
 
+  const [sourceProtocol, setSourceProtocol] = useState<"ftp" | "sftp">("ftp");
   const [sourceHost, setSourceHost] = useState("");
+  const [sourcePort, setSourcePort] = useState("");
   const [sourceUser, setSourceUser] = useState("");
   const [sourcePass, setSourcePass] = useState("");
   const [sourcePath, setSourcePath] = useState("");
 
+  const [destProtocol, setDestProtocol] = useState<"ftp" | "sftp">("ftp");
   const [destHost, setDestHost] = useState("");
+  const [destPort, setDestPort] = useState("");
   const [destUser, setDestUser] = useState("");
   const [destPass, setDestPass] = useState("");
   const [destPath, setDestPath] = useState("");
@@ -98,12 +102,16 @@ export default function TransferForm() {
     const conn = connections.find((c) => c.id === id);
     if (!conn) return;
     if (role === "source") {
+      setSourceProtocol(conn.protocol ?? "ftp");
       setSourceHost(conn.host);
+      setSourcePort(conn.port ? String(conn.port) : "");
       setSourceUser(conn.user);
       setSourcePass(conn.password);
       setSourcePath(conn.path);
     } else {
+      setDestProtocol(conn.protocol ?? "ftp");
       setDestHost(conn.host);
+      setDestPort(conn.port ? String(conn.port) : "");
       setDestUser(conn.user);
       setDestPass(conn.password);
       setDestPath(conn.path);
@@ -124,7 +132,9 @@ export default function TransferForm() {
   const saveServer = async (
     role: "source" | "destination",
     label: string,
+    protocol: "ftp" | "sftp",
     host: string,
+    port: string,
     user: string,
     password: string,
     path: string
@@ -133,7 +143,16 @@ export default function TransferForm() {
       const res = await fetch("/api/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, role, host, user, password, path }),
+        body: JSON.stringify({
+          label,
+          role,
+          protocol,
+          host,
+          port: port ? Number(port) : undefined,
+          user,
+          password,
+          path,
+        }),
       });
       const data = await res.json();
       if (data.connection) {
@@ -150,12 +169,12 @@ export default function TransferForm() {
     setTransfer({ status: "transferring", message: "Connecting to servers..." });
 
     if (saveSource && sourceLabel) {
-      saveServer("source", sourceLabel, sourceHost, sourceUser, sourcePass, sourcePath);
+      saveServer("source", sourceLabel, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath);
       setSaveSource(false);
       setSourceLabel("");
     }
     if (saveDest && destLabel) {
-      saveServer("destination", destLabel, destHost, destUser, destPass, destPath);
+      saveServer("destination", destLabel, destProtocol, destHost, destPort, destUser, destPass, destPath);
       setSaveDest(false);
       setDestLabel("");
     }
@@ -166,13 +185,17 @@ export default function TransferForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           source: {
+            protocol: sourceProtocol,
             host: sourceHost,
+            port: sourcePort ? Number(sourcePort) : undefined,
             user: sourceUser,
             password: sourcePass,
             path: sourcePath,
           },
           destination: {
+            protocol: destProtocol,
             host: destHost,
+            port: destPort ? Number(destPort) : undefined,
             user: destUser,
             password: destPass,
             path: destPath,
@@ -306,20 +329,56 @@ export default function TransferForm() {
                 )}
                 <div>
                   <label
-                    htmlFor="srcHost"
+                    htmlFor="srcProtocol"
                     className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
-                    FTP Host
+                    Protocol
                   </label>
-                  <input
-                    id="srcHost"
-                    type="text"
-                    value={sourceHost}
-                    onChange={(e) => setSourceHost(e.target.value)}
-                    placeholder="ftp.source-server.com"
+                  <select
+                    id="srcProtocol"
+                    value={sourceProtocol}
+                    onChange={(e) => setSourceProtocol(e.target.value as "ftp" | "sftp")}
                     className={inputClass}
-                    required
-                  />
+                  >
+                    <option value="ftp">FTP</option>
+                    <option value="sftp">SFTP</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label
+                      htmlFor="srcHost"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      {sourceProtocol === "sftp" ? "SFTP Host" : "FTP Host"}
+                    </label>
+                    <input
+                      id="srcHost"
+                      type="text"
+                      value={sourceHost}
+                      onChange={(e) => setSourceHost(e.target.value)}
+                      placeholder={sourceProtocol === "sftp" ? "sftp.source-server.com" : "ftp.source-server.com"}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="srcPort"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      Port
+                    </label>
+                    <input
+                      id="srcPort"
+                      type="text"
+                      inputMode="numeric"
+                      value={sourcePort}
+                      onChange={(e) => setSourcePort(e.target.value)}
+                      placeholder={sourceProtocol === "sftp" ? "22" : "21"}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label
@@ -450,20 +509,56 @@ export default function TransferForm() {
                 )}
                 <div>
                   <label
-                    htmlFor="dstHost"
+                    htmlFor="dstProtocol"
                     className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
                   >
-                    FTP Host
+                    Protocol
                   </label>
-                  <input
-                    id="dstHost"
-                    type="text"
-                    value={destHost}
-                    onChange={(e) => setDestHost(e.target.value)}
-                    placeholder="ftp.destination-server.com"
+                  <select
+                    id="dstProtocol"
+                    value={destProtocol}
+                    onChange={(e) => setDestProtocol(e.target.value as "ftp" | "sftp")}
                     className={inputClass}
-                    required
-                  />
+                  >
+                    <option value="ftp">FTP</option>
+                    <option value="sftp">SFTP</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label
+                      htmlFor="dstHost"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      {destProtocol === "sftp" ? "SFTP Host" : "FTP Host"}
+                    </label>
+                    <input
+                      id="dstHost"
+                      type="text"
+                      value={destHost}
+                      onChange={(e) => setDestHost(e.target.value)}
+                      placeholder={destProtocol === "sftp" ? "sftp.destination-server.com" : "ftp.destination-server.com"}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="dstPort"
+                      className="block text-sm text-slate-600 dark:text-slate-400 mb-1"
+                    >
+                      Port
+                    </label>
+                    <input
+                      id="dstPort"
+                      type="text"
+                      inputMode="numeric"
+                      value={destPort}
+                      onChange={(e) => setDestPort(e.target.value)}
+                      placeholder={destProtocol === "sftp" ? "22" : "21"}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label

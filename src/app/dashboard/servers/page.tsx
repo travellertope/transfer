@@ -20,7 +20,7 @@ const inputClass =
 type FormData = Omit<SavedConnection, "id"> & { password: string };
 
 const emptyForm: FormData = {
-  label: "", role: "source", host: "", user: "", password: "", path: "",
+  label: "", role: "source", protocol: "ftp", host: "", user: "", password: "", path: "",
 };
 
 function ServerModal({
@@ -91,9 +91,39 @@ function ServerModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Protocol</label>
+              <select
+                value={form.protocol}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, protocol: e.target.value as "ftp" | "sftp" }))
+                }
+                className={inputClass}
+              >
+                <option value="ftp">FTP</option>
+                <option value="sftp">SFTP</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Port</label>
+              <input
+                value={form.port ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, port: e.target.value ? Number(e.target.value) : undefined }))
+                }
+                placeholder={form.protocol === "sftp" ? "22" : "21"}
+                inputMode="numeric"
+                className={inputClass}
+              />
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">FTP Host</label>
-            <input value={form.host} onChange={set("host")} placeholder="ftp.example.com" className={inputClass} required />
+            <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+              {form.protocol === "sftp" ? "SFTP Host" : "FTP Host"}
+            </label>
+            <input value={form.host} onChange={set("host")} placeholder={form.protocol === "sftp" ? "sftp.example.com" : "ftp.example.com"} className={inputClass} required />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -268,7 +298,13 @@ export default function ServersPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">{c.host}</td>
+                          <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
+                            <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
+                              {c.protocol === "sftp" ? "SFTP" : "FTP"}
+                            </span>
+                            {c.host}
+                            {c.port ? `:${c.port}` : ""}
+                          </td>
                           <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">{c.path}</td>
                           <td className="px-5 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">

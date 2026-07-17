@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import * as ftp from "basic-ftp";
 import { PassThrough } from "stream";
 import { getSessionUser } from "@/lib/session";
 import { limitForUser, formatBytes } from "@/lib/limits";
+import { createTransferClient, type ServerConfig, type TransferClient } from "@/lib/transferClients";
 
-interface ServerConfig {
-  host: string;
-  user: string;
-  password: string;
-  path: string;
+function normalizeConfig(config: ServerConfig): ServerConfig {
+  return {
+    ...config,
+    protocol: config.protocol === "sftp" ? "sftp" : "ftp",
+  };
 }
 
 export async function POST(req: NextRequest) {
-  let sourceClient: ftp.Client | null = null;
-  let destClient: ftp.Client | null = null;
+  let sourceClient: TransferClient | null = null;
+  let destClient: TransferClient | null = null;
 
   try {
     const user = await getSessionUser(req);
@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const source: ServerConfig = body.source;
-    const destination: ServerConfig = body.destination;
+    const source = normalizeConfig(body.source);
+    const destination = normalizeConfig(body.destination);
 
     // Validate inputs
     if (
@@ -52,15 +52,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Step 1: Connect to source FTP and check the file size against the tier limit ---
-    sourceClient = new ftp.Client();
-    sourceClient.ftp.verbose = false;
-    await sourceClient.access({
-      host: source.host,
-      user: source.user,
-      password: source.password,
-      secure: false,
-    });
+    // --- Step 1: Connect to source and check the file size against the tier limit ---
+    sourceClient = createTransferClient(source.protocol);
+    await sourceClient.connect(source);
 
     const fileSize = await sourceClient.size(source.path);
     const limit = limitForUser(user.isPro);
@@ -79,15 +73,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // --- Step 2: Connect to destination FTP and stream source -> destination concurrently ---
-    destClient = new ftp.Client();
-    destClient.ftp.verbose = false;
-    await destClient.access({
-      host: destination.host,
-      user: destination.user,
-      password: destination.password,
-      secure: false,
-    });
+    // --- Step 2: Connect to destination and stream source -> destination concurrently ---
+    destClient = createTransferClient(destination.protocol);
+    await destClient.connect(destination);
 
     const destDir = destination.path.substring(
       0,
