@@ -20,7 +20,7 @@ const inputClass =
 type FormData = Omit<SavedConnection, "id"> & { password: string };
 
 const emptyForm: FormData = {
-  label: "", role: "source", protocol: "ftp", host: "", user: "", password: "", path: "",
+  label: "", protocol: "ftp", host: "", user: "", password: "", path: "",
 };
 
 function ServerModal({
@@ -77,18 +77,9 @@ function ServerModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Label</label>
-              <input value={form.label} onChange={set("label")} placeholder="Production" className={inputClass} required />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Role</label>
-              <select value={form.role} onChange={set("role")} className={inputClass}>
-                <option value="source">Source</option>
-                <option value="destination">Destination</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Label</label>
+            <input value={form.label} onChange={set("label")} placeholder="Production" className={inputClass} required />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -231,9 +222,6 @@ export default function ServersPage() {
     setDeletingId(null);
   };
 
-  const sources = connections.filter((c) => c.role === "source");
-  const destinations = connections.filter((c) => c.role === "destination");
-
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -263,77 +251,67 @@ export default function ServersPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
-          {[{ label: "Source Servers", items: sources, color: "bg-emerald-500/20 text-emerald-400" },
-            { label: "Destination Servers", items: destinations, color: "bg-blue-500/20 text-blue-400" }]
-            .filter(({ items }) => items.length > 0)
-            .map(({ label, items, color }) => (
-              <div key={label}>
-                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{label}</h2>
-                <div className="glass-card rounded-2xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-800">
-                        <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Label</th>
-                        <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Host</th>
-                        <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">Path</th>
-                        <th className="text-right px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                      {items.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-                                <Server className="w-3.5 h-3.5" />
-                              </div>
-                              <span className="font-medium text-slate-900 dark:text-white">
-                                {c.label}
-                                {justSaved === c.id && (
-                                  <span className="ml-2 inline-flex items-center gap-1 text-emerald-500 text-xs">
-                                    <CheckCircle2 className="w-3 h-3" /> Saved
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
-                            <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
-                              {c.protocol === "sftp" ? "SFTP" : "FTP"}
-                            </span>
-                            {c.host}
-                            {c.port ? `:${c.port}` : ""}
-                          </td>
-                          <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">{c.path}</td>
-                          <td className="px-5 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => openEdit(c)}
-                                className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"
-                                title="Edit"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(c.id)}
-                                disabled={deletingId === c.id}
-                                className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                title="Delete"
-                              >
-                                {deletingId === c.id
-                                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                                  : <Trash2 className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800">
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Label</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Host</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">Path</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {connections.map((c) => (
+                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-primary/20 text-primary-light">
+                        <Server className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {c.label}
+                        {justSaved === c.id && (
+                          <span className="ml-2 inline-flex items-center gap-1 text-emerald-500 text-xs">
+                            <CheckCircle2 className="w-3 h-3" /> Saved
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
+                    <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
+                      {c.protocol === "sftp" ? "SFTP" : "FTP"}
+                    </span>
+                    {c.host}
+                    {c.port ? `:${c.port}` : ""}
+                  </td>
+                  <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">{c.path}</td>
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => openEdit(c)}
+                        className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        disabled={deletingId === c.id}
+                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Delete"
+                      >
+                        {deletingId === c.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

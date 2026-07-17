@@ -56,7 +56,6 @@ function airftp_connection_payload($conn) {
     return [
         'id' => $conn['id'],
         'label' => $conn['label'],
-        'role' => $conn['role'],
         'protocol' => (isset($conn['protocol']) && $conn['protocol'] === 'sftp') ? 'sftp' : 'ftp',
         'host' => $conn['host'],
         'port' => (!empty($conn['port'])) ? (int) $conn['port'] : null,
@@ -107,7 +106,6 @@ function airftp_handle_save_connection(WP_REST_Request $request) {
     }
 
     $label = sanitize_text_field((string) $request->get_param('label'));
-    $role = (string) $request->get_param('role');
     $protocol = airftp_sanitize_protocol((string) $request->get_param('protocol'));
     $host = sanitize_text_field((string) $request->get_param('host'));
     [$port, $port_error] = airftp_sanitize_port($request->get_param('port'));
@@ -115,10 +113,10 @@ function airftp_handle_save_connection(WP_REST_Request $request) {
     $password = (string) $request->get_param('password');
     $path = sanitize_text_field((string) $request->get_param('path'));
 
-    if (!$label || !in_array($role, ['source', 'destination'], true) || !$host || !$ftp_user || !$password || !$path) {
+    if (!$label || !$host || !$ftp_user || !$password || !$path) {
         return new WP_Error(
             'airftp_invalid_input',
-            'label, role, host, user, password, and path are all required.',
+            'label, host, user, password, and path are all required.',
             ['status' => 400]
         );
     }
@@ -131,7 +129,6 @@ function airftp_handle_save_connection(WP_REST_Request $request) {
     $entry = [
         'id' => wp_generate_uuid4(),
         'label' => $label,
-        'role' => $role,
         'protocol' => $protocol,
         'host' => $host,
         'port' => $port,
@@ -169,7 +166,6 @@ function airftp_handle_update_connection(WP_REST_Request $request) {
     $existing = $connections[$index];
 
     $label = $request->get_param('label');
-    $role = $request->get_param('role');
     $protocol = $request->get_param('protocol');
     $host = $request->get_param('host');
     $port_param = $request->get_param('port');
@@ -179,9 +175,6 @@ function airftp_handle_update_connection(WP_REST_Request $request) {
 
     if ($label !== null && $label !== '') {
         $existing['label'] = sanitize_text_field((string) $label);
-    }
-    if ($role !== null && in_array($role, ['source', 'destination'], true)) {
-        $existing['role'] = $role;
     }
     if ($protocol !== null) {
         $existing['protocol'] = airftp_sanitize_protocol((string) $protocol);

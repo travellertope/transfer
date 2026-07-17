@@ -87,10 +87,10 @@ export default function TransferForm() {
       .catch(() => {});
   }, [user]);
 
-  const applySaved = (role: "source" | "destination", id: string) => {
+  const applySaved = (panel: "source" | "destination", id: string) => {
     const conn = connections.find((c) => c.id === id);
     if (!conn) return;
-    if (role === "source") {
+    if (panel === "source") {
       setSourceProtocol(conn.protocol ?? "ftp");
       setSourceHost(conn.host);
       setSourcePort(conn.port ? String(conn.port) : "");
@@ -107,9 +107,9 @@ export default function TransferForm() {
     }
   };
 
-  const deleteSaved = async (role: "source" | "destination", id: string) => {
+  const deleteSaved = async (panel: "source" | "destination", id: string) => {
     setConnections((prev) => prev.filter((c) => c.id !== id));
-    if (role === "source") setSourceSavedId("");
+    if (panel === "source") setSourceSavedId("");
     else setDestSavedId("");
     try {
       await fetch(`/api/connections/${id}`, { method: "DELETE" });
@@ -119,7 +119,6 @@ export default function TransferForm() {
   };
 
   const saveServer = async (
-    role: "source" | "destination",
     label: string,
     protocol: "ftp" | "sftp",
     host: string,
@@ -134,7 +133,6 @@ export default function TransferForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label,
-          role,
           protocol,
           host,
           port: port ? Number(port) : undefined,
@@ -156,12 +154,12 @@ export default function TransferForm() {
     e.preventDefault();
 
     if (saveSource && sourceLabel) {
-      saveServer("source", sourceLabel, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath);
+      saveServer(sourceLabel, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath);
       setSaveSource(false);
       setSourceLabel("");
     }
     if (saveDest && destLabel) {
-      saveServer("destination", destLabel, destProtocol, destHost, destPort, destUser, destPass, destPath);
+      saveServer(destLabel, destProtocol, destHost, destPort, destUser, destPass, destPath);
       setSaveDest(false);
       setDestLabel("");
     }
@@ -247,7 +245,7 @@ export default function TransferForm() {
               </div>
 
               <div className="space-y-4">
-                {connections.some((c) => c.role === "source") && (
+                {connections.length > 0 && (
                   <div>
                     <label
                       htmlFor="srcSaved"
@@ -266,13 +264,11 @@ export default function TransferForm() {
                         className={inputClass}
                       >
                         <option value="">Enter manually...</option>
-                        {connections
-                          .filter((c) => c.role === "source")
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.label}
-                            </option>
-                          ))}
+                        {connections.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
                       </select>
                       {sourceSavedId && (
                         <button
@@ -427,7 +423,7 @@ export default function TransferForm() {
               </div>
 
               <div className="space-y-4">
-                {connections.some((c) => c.role === "destination") && (
+                {connections.length > 0 && (
                   <div>
                     <label
                       htmlFor="dstSaved"
@@ -446,13 +442,11 @@ export default function TransferForm() {
                         className={inputClass}
                       >
                         <option value="">Enter manually...</option>
-                        {connections
-                          .filter((c) => c.role === "destination")
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.label}
-                            </option>
-                          ))}
+                        {connections.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
                       </select>
                       {destSavedId && (
                         <button

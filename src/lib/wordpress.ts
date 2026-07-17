@@ -15,7 +15,6 @@ interface WpAuthResponse {
 export interface SavedConnection {
   id: string;
   label: string;
-  role: "source" | "destination";
   protocol: "ftp" | "sftp";
   host: string;
   port?: number;

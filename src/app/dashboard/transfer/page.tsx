@@ -216,10 +216,10 @@ export default function TransferPage() {
       .catch(() => {});
   }, []);
 
-  const applySaved = (role: "source" | "destination", id: string) => {
+  const applySaved = (panel: "source" | "destination", id: string) => {
     const conn = connections.find((c) => c.id === id);
     if (!conn) return;
-    if (role === "source") {
+    if (panel === "source") {
       setSrcProtocol(conn.protocol ?? "ftp"); setSrcHost(conn.host); setSrcPort(conn.port ? String(conn.port) : "");
       setSrcUser(conn.user); setSrcPass(conn.password); setSrcPath(conn.path);
     } else {
@@ -228,14 +228,13 @@ export default function TransferPage() {
     }
   };
 
-  const deleteSaved = async (role: "source" | "destination", id: string) => {
+  const deleteSaved = async (panel: "source" | "destination", id: string) => {
     setConnections((prev) => prev.filter((c) => c.id !== id));
-    if (role === "source") setSrcSavedId(""); else setDstSavedId("");
+    if (panel === "source") setSrcSavedId(""); else setDstSavedId("");
     await fetch(`/api/connections/${id}`, { method: "DELETE" }).catch(() => {});
   };
 
   const saveServer = async (
-    role: "source" | "destination",
     lbl: string,
     protocol: "ftp" | "sftp",
     host: string,
@@ -249,7 +248,6 @@ export default function TransferPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         label: lbl,
-        role,
         protocol,
         host,
         port: prt ? Number(prt) : undefined,
@@ -268,11 +266,11 @@ export default function TransferPage() {
     e.preventDefault();
 
     if (saveSource && srcLabel) {
-      saveServer("source", srcLabel, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath);
+      saveServer(srcLabel, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath);
       setSaveSource(false); setSrcLabel("");
     }
     if (saveDest && dstLabel) {
-      saveServer("destination", dstLabel, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath);
+      saveServer(dstLabel, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath);
       setSaveDest(false); setDstLabel("");
     }
 
@@ -296,9 +294,6 @@ export default function TransferPage() {
     );
   };
 
-  const srcConnections = connections.filter((c) => c.role === "source");
-  const dstConnections = connections.filter((c) => c.role === "destination");
-
   return (
     <div className="p-6 md:p-8 max-w-5xl mx-auto">
       <div className="mb-6">
@@ -316,7 +311,7 @@ export default function TransferPage() {
           <ServerPanel
             title="Source Server" subtitle="Copy FROM here"
             iconColor="bg-emerald-500/20 text-emerald-400"
-            savedConnections={srcConnections}
+            savedConnections={connections}
             savedId={srcSavedId}
             onSavedChange={(id) => { setSrcSavedId(id); if (id) applySaved("source", id); }}
             onDeleteSaved={(id) => deleteSaved("source", id)}
@@ -334,7 +329,7 @@ export default function TransferPage() {
           <ServerPanel
             title="Destination Server" subtitle="Send TO here"
             iconColor="bg-blue-500/20 text-blue-400"
-            savedConnections={dstConnections}
+            savedConnections={connections}
             savedId={dstSavedId}
             onSavedChange={(id) => { setDstSavedId(id); if (id) applySaved("destination", id); }}
             onDeleteSaved={(id) => deleteSaved("destination", id)}
