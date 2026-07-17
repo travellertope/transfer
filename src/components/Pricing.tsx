@@ -75,7 +75,7 @@ export default function Pricing() {
     }
 
     if (planName === "Free") {
-      router.push("/#transfer");
+      router.push("/dashboard/transfer");
       return;
     }
 

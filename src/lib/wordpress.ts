@@ -60,6 +60,28 @@ export async function loginUser(
   return parseOrThrow<WpAuthResponse>(res);
 }
 
+export async function forgotPassword(email: string, redirectUrl: string): Promise<void> {
+  const res = await fetch(wpUrl("/forgot-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, redirectUrl }),
+  });
+  await parseOrThrow(res);
+}
+
+export async function resetPassword(
+  login: string,
+  key: string,
+  password: string
+): Promise<WpAuthResponse> {
+  const res = await fetch(wpUrl("/reset-password"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ login, key, password }),
+  });
+  return parseOrThrow<WpAuthResponse>(res);
+}
+
 export async function validateToken(token: string): Promise<WpUser | null> {
   try {
     const res = await fetch(wpUrl("/validate"), {
@@ -98,8 +120,158 @@ export async function saveConnection(
   return data.connection;
 }
 
+export async function updateConnection(
+  token: string,
+  id: string,
+  conn: Partial<Omit<SavedConnection, "id">>
+): Promise<SavedConnection> {
+  const res = await fetch(wpUrl(`/connections/${id}`), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(conn),
+  });
+  const data = await parseOrThrow<{ connection: SavedConnection }>(res);
+  return data.connection;
+}
+
 export async function deleteConnection(token: string, id: string): Promise<void> {
   const res = await fetch(wpUrl(`/connections/${id}`), {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  await parseOrThrow(res);
+}
+
+export interface TransferRecord {
+  id: string;
+  created_at: string;
+  source_host: string;
+  source_path: string;
+  dest_host: string;
+  dest_path: string;
+  bytes: number;
+  status: "success" | "failed";
+  error: string;
+}
+
+export async function listHistory(token: string): Promise<TransferRecord[]> {
+  const res = await fetch(wpUrl("/history"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ transfers: TransferRecord[] }>(res);
+  return data.transfers;
+}
+
+export async function addHistory(
+  token: string,
+  record: Omit<TransferRecord, "id" | "created_at">
+): Promise<TransferRecord> {
+  const body = {
+    sourceHost: record.source_host,
+    sourcePath: record.source_path,
+    destHost: record.dest_host,
+    destPath: record.dest_path,
+    bytes: record.bytes,
+    status: record.status,
+    error: record.error ?? "",
+  };
+  const res = await fetch(wpUrl("/history"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+  const data = await parseOrThrow<{ transfer: TransferRecord }>(res);
+  return data.transfer;
+}
+
+export async function updateUser(
+  token: string,
+  fields: { name?: string; email?: string; currentPassword?: string; newPassword?: string }
+): Promise<WpUser> {
+  const res = await fetch(wpUrl("/user"), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(fields),
+  });
+  const data = await parseOrThrow<{ user: WpUser }>(res);
+  return data.user;
+}
+
+export interface ApiKey {
+  id: string;
+  label: string;
+  prefix: string;
+  created_at: string;
+}
+
+export async function listApiKeys(token: string): Promise<ApiKey[]> {
+  const res = await fetch(wpUrl("/api-keys"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ apiKeys: ApiKey[] }>(res);
+  return data.apiKeys;
+}
+
+export async function createApiKey(
+  token: string,
+  label: string
+): Promise<{ apiKey: ApiKey; fullKey: string }> {
+  const res = await fetch(wpUrl("/api-keys"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ label }),
+  });
+  return parseOrThrow<{ apiKey: ApiKey; fullKey: string }>(res);
+}
+
+export async function deleteApiKey(token: string, id: string): Promise<void> {
+  const res = await fetch(wpUrl(`/api-keys/${id}`), {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  await parseOrThrow(res);
+}
+
+export interface Webhook {
+  id: string;
+  label: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  created_at: string;
+}
+
+export async function listWebhooks(token: string): Promise<Webhook[]> {
+  const res = await fetch(wpUrl("/webhooks"), { headers: authHeaders(token) });
+  const data = await parseOrThrow<{ webhooks: Webhook[] }>(res);
+  return data.webhooks;
+}
+
+export async function createWebhook(
+  token: string,
+  hook: Omit<Webhook, "id" | "created_at">
+): Promise<Webhook> {
+  const res = await fetch(wpUrl("/webhooks"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(hook),
+  });
+  const data = await parseOrThrow<{ webhook: Webhook }>(res);
+  return data.webhook;
+}
+
+export async function updateWebhook(
+  token: string,
+  id: string,
+  hook: Omit<Webhook, "id" | "created_at">
+): Promise<Webhook> {
+  const res = await fetch(wpUrl(`/webhooks/${id}`), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(hook),
+  });
+  const data = await parseOrThrow<{ webhook: Webhook }>(res);
+  return data.webhook;
+}
+
+export async function deleteWebhook(token: string, id: string): Promise<void> {
+  const res = await fetch(wpUrl(`/webhooks/${id}`), {
     method: "DELETE",
     headers: authHeaders(token),
   });

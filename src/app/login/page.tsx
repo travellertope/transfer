@@ -25,7 +25,7 @@ export default function LoginPage() {
     const result = await login(email, password);
     setLoading(false);
     if (result.success) {
-      router.push("/");
+      router.push("/dashboard");
     } else {
       setError(result.error || "Login failed. Check your email and password.");
     }
@@ -67,9 +67,14 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="block text-sm text-slate-600 dark:text-slate-400">
+                  Password
+                </label>
+                <Link href="/forgot-password" className="text-sm text-primary-light hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <input
                   id="password"
