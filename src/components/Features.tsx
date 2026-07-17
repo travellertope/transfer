@@ -38,7 +38,7 @@ const features = [
     icon: Gauge,
     title: "Chunked Streaming",
     description:
-      "Data is piped in efficient 8KB chunks — the same battle-tested approach used in production server migrations.",
+      "Data streams straight from source to destination in a continuous pipe instead of being buffered in memory, so transfer size isn't limited by available RAM.",
   },
   {
     icon: RefreshCw,

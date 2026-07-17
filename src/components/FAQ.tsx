@@ -10,7 +10,7 @@ const faqs = [
   },
   {
     q: "What's the maximum file size?",
-    a: "On the Free plan, up to 1GB. Pro supports 10GB, and Enterprise has no limit. The underlying streaming architecture can handle files of any size — it processes data in small 8KB chunks so memory usage stays constant regardless of file size.",
+    a: "On the Free plan, up to 800MB. Pro supports 10GB, and Enterprise has no limit. The underlying streaming architecture can handle files of any size — it streams data directly from source to destination instead of buffering it in memory, so memory usage stays constant regardless of file size.",
   },
   {
     q: "Are my FTP credentials safe?",
