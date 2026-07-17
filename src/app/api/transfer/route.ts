@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
 import { limitForUser, formatBytes } from "@/lib/limits";
-import { createTransferClient, type ServerConfig } from "@/lib/transferClients";
+import { createTransferClient, type Protocol, type ServerConfig } from "@/lib/transferClients";
 import { createJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
+  const protocols: Protocol[] = ["ftp", "sftp", "gdrive"];
   return {
     ...config,
-    protocol: config.protocol === "sftp" ? "sftp" : "ftp",
+    protocol: protocols.includes(config.protocol) ? config.protocol : "ftp",
   };
 }
 
@@ -50,6 +51,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { success: false, error: "Missing destination server configuration." },
       { status: 400 }
+    );
+  }
+
+  if ((source.protocol === "gdrive" || destination.protocol === "gdrive") && !user.isPro) {
+    return NextResponse.json(
+      { success: false, error: "Google Drive transfers are a Pro feature. Upgrade to use them." },
+      { status: 403 }
     );
   }
 

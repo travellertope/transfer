@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Server,
   Plus,
@@ -11,7 +12,10 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
+  HardDrive,
+  AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import type { SavedConnection } from "@/lib/wordpress";
 
 const inputClass =
@@ -166,18 +170,28 @@ function ServerModal({
 }
 
 export default function ServersPage() {
+  const { user } = useAuth();
   const [connections, setConnections] = useState<SavedConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<SavedConnection | undefined>();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState<string | null>(null);
+  const [gdriveConnected, setGdriveConnected] = useState(false);
+  const [gdriveError, setGdriveError] = useState("");
 
   useEffect(() => {
     fetch("/api/connections")
       .then((r) => r.json())
       .then((d) => setConnections(d.connections ?? []))
       .finally(() => setLoading(false));
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("gdrive_connected")) setGdriveConnected(true);
+    if (params.get("gdrive_error")) setGdriveError(params.get("gdrive_error") || "Failed to connect Google Drive.");
+    if (params.has("gdrive_connected") || params.has("gdrive_error")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   const openAdd = () => { setEditing(undefined); setShowModal(true); };
@@ -224,18 +238,48 @@ export default function ServersPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Saved Servers</h1>
           <p className="text-slate-500 text-sm mt-1">Credentials are encrypted at rest.</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add Server
-        </button>
+        <div className="flex items-center gap-2">
+          {user?.isPro ? (
+            <a
+              href="/api/oauth/google/start"
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 hover:border-primary/50 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition-colors"
+            >
+              <HardDrive className="w-4 h-4" /> Connect Google Drive
+            </a>
+          ) : (
+            <Link
+              href="/#pricing"
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 text-slate-400 text-sm font-semibold rounded-xl transition-colors"
+              title="Google Drive is a Pro feature"
+            >
+              <HardDrive className="w-4 h-4" /> Connect Google Drive (Pro)
+            </Link>
+          )}
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Server
+          </button>
+        </div>
       </div>
+
+      {gdriveConnected && (
+        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+          <CheckCircle2 className="w-4 h-4" /> Google Drive connected.
+        </div>
+      )}
+      {gdriveError && (
+        <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 mb-4">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{gdriveError === "pro_required" ? "Google Drive is a Pro feature — upgrade to connect an account." : gdriveError}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="glass-card rounded-2xl p-12 text-center">
@@ -267,7 +311,7 @@ export default function ServersPage() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-primary/20 text-primary-light">
-                        <Server className="w-3.5 h-3.5" />
+                        {c.protocol === "gdrive" ? <HardDrive className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
                       </div>
                       <span className="font-medium text-slate-900 dark:text-white">
                         {c.label}
@@ -281,21 +325,24 @@ export default function ServersPage() {
                   </td>
                   <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
                     <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
-                      {c.protocol === "sftp" ? "SFTP" : "FTP"}
+                      {c.protocol === "gdrive" ? "DRIVE" : c.protocol === "sftp" ? "SFTP" : "FTP"}
                     </span>
-                    {c.host}
-                    {c.port ? `:${c.port}` : ""}
+                    {c.protocol === "gdrive" ? c.host : `${c.host}${c.port ? `:${c.port}` : ""}`}
                   </td>
-                  <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">{c.path}</td>
+                  <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">
+                    {c.protocol === "gdrive" ? "Chosen per transfer" : c.path}
+                  </td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openEdit(c)}
-                        className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                      {c.protocol !== "gdrive" && (
+                        <button
+                          onClick={() => openEdit(c)}
+                          className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(c.id)}
                         disabled={deletingId === c.id}

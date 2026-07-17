@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Protocol } from "@/lib/transferClients";
 
 export interface TransferUiState {
   status: "idle" | "transferring" | "success" | "error";
@@ -11,7 +12,7 @@ export interface TransferUiState {
 }
 
 interface TransferServerConfig {
-  protocol: "ftp" | "sftp";
+  protocol: Protocol;
   host: string;
   port?: number;
   user: string;

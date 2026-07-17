@@ -56,10 +56,13 @@ function airftp_connection_payload($conn) {
     return [
         'id' => $conn['id'],
         'label' => $conn['label'],
-        'protocol' => (isset($conn['protocol']) && $conn['protocol'] === 'sftp') ? 'sftp' : 'ftp',
+        'protocol' => airftp_sanitize_protocol($conn['protocol'] ?? ''),
         'host' => $conn['host'],
         'port' => (!empty($conn['port'])) ? (int) $conn['port'] : null,
         'user' => $conn['user'],
+        // For gdrive connections this "password" is really an OAuth refresh
+        // token, but it's encrypted at rest the same way, so decryption is
+        // identical either way.
         'password' => airftp_decrypt($conn['password']),
         'path' => $conn['path'],
     ];
@@ -69,7 +72,10 @@ function airftp_connection_payload($conn) {
  * Validates a protocol param, defaulting to 'ftp' when absent/unrecognized.
  */
 function airftp_sanitize_protocol($protocol) {
-    return ($protocol === 'sftp') ? 'sftp' : 'ftp';
+    if (in_array($protocol, ['sftp', 'gdrive'], true)) {
+        return $protocol;
+    }
+    return 'ftp';
 }
 
 /**

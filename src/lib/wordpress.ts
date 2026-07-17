@@ -1,4 +1,4 @@
-import type { ServerConfig } from "./transferClients";
+import type { Protocol, ServerConfig } from "./transferClients";
 
 export interface WpUser {
   id: number;
@@ -15,7 +15,7 @@ interface WpAuthResponse {
 export interface SavedConnection {
   id: string;
   label: string;
-  protocol: "ftp" | "sftp";
+  protocol: Protocol;
   host: string;
   port?: number;
   user: string;
