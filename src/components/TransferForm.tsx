@@ -6,23 +6,15 @@ import {
   Server,
   ArrowRightLeft,
   Loader2,
-  CheckCircle2,
-  AlertCircle,
   Eye,
   EyeOff,
   LogIn,
   Trash2,
 } from "lucide-react";
 import { useAuth } from "./AuthProvider";
-import { formatBytes } from "@/lib/limits";
+import { useTransferJob } from "./useTransferJob";
+import { TransferStatusCard } from "./TransferStatusCard";
 import type { SavedConnection } from "@/lib/wordpress";
-
-interface TransferState {
-  status: "idle" | "transferring" | "success" | "error";
-  message: string;
-  bytesTransferred?: number;
-  limitExceeded?: boolean;
-}
 
 function PasswordInput({
   id,
@@ -82,10 +74,7 @@ export default function TransferForm() {
   const [saveDest, setSaveDest] = useState(false);
   const [destLabel, setDestLabel] = useState("");
 
-  const [transfer, setTransfer] = useState<TransferState>({
-    status: "idle",
-    message: "",
-  });
+  const { state: transfer, start, cancel } = useTransferJob();
 
   useEffect(() => {
     if (!user) {
@@ -166,8 +155,6 @@ export default function TransferForm() {
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    setTransfer({ status: "transferring", message: "Connecting to servers..." });
-
     if (saveSource && sourceLabel) {
       saveServer("source", sourceLabel, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath);
       setSaveSource(false);
@@ -179,51 +166,24 @@ export default function TransferForm() {
       setDestLabel("");
     }
 
-    try {
-      const res = await fetch("/api/transfer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: {
-            protocol: sourceProtocol,
-            host: sourceHost,
-            port: sourcePort ? Number(sourcePort) : undefined,
-            user: sourceUser,
-            password: sourcePass,
-            path: sourcePath,
-          },
-          destination: {
-            protocol: destProtocol,
-            host: destHost,
-            port: destPort ? Number(destPort) : undefined,
-            user: destUser,
-            password: destPass,
-            path: destPath,
-          },
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setTransfer({
-          status: "success",
-          message: data.message,
-          bytesTransferred: data.bytesTransferred,
-        });
-      } else {
-        setTransfer({
-          status: "error",
-          message: data.error || "Transfer failed. Check your credentials and paths.",
-          limitExceeded: data.code === "LIMIT_EXCEEDED",
-        });
+    start(
+      {
+        protocol: sourceProtocol,
+        host: sourceHost,
+        port: sourcePort ? Number(sourcePort) : undefined,
+        user: sourceUser,
+        password: sourcePass,
+        path: sourcePath,
+      },
+      {
+        protocol: destProtocol,
+        host: destHost,
+        port: destPort ? Number(destPort) : undefined,
+        user: destUser,
+        password: destPass,
+        path: destPath,
       }
-    } catch {
-      setTransfer({
-        status: "error",
-        message: "Network error. Please try again.",
-      });
-    }
+    );
   };
 
   const inputClass =
@@ -659,44 +619,7 @@ export default function TransferForm() {
         </form>
         )}
 
-        {/* Status Display */}
-        {transfer.status === "transferring" && (
-          <div className="glass-card rounded-2xl p-6 text-center">
-            <Loader2 className="w-8 h-8 text-primary-light animate-spin mx-auto mb-3" />
-            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer in Progress</p>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Streaming data directly between servers. This may take several
-              minutes for large files. You can keep this tab open or check back
-              later.
-            </p>
-          </div>
-        )}
-
-        {transfer.status === "success" && (
-          <div className="glass-card rounded-2xl p-6 text-center border-emerald-500/30">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-3" />
-            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Complete</p>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">{transfer.message}</p>
-            {transfer.bytesTransferred && (
-              <p className="text-lg font-mono text-emerald-600 dark:text-emerald-400">
-                {formatBytes(transfer.bytesTransferred)} transferred
-              </p>
-            )}
-          </div>
-        )}
-
-        {transfer.status === "error" && (
-          <div className="glass-card rounded-2xl p-6 text-center border-red-500/30">
-            <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-            <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Failed</p>
-            <p className="text-sm text-red-600 dark:text-red-300 mb-2">{transfer.message}</p>
-            {transfer.limitExceeded && (
-              <a href="#pricing" className="text-sm text-primary-light hover:underline">
-                Upgrade to Pro for 10GB transfers →
-              </a>
-            )}
-          </div>
-        )}
+        <TransferStatusCard transfer={transfer} onCancel={cancel} upgradeHref="#pricing" />
       </div>
     </section>
   );

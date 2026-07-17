@@ -16,10 +16,21 @@ export interface ServerConfig {
 export interface TransferClient {
   connect(config: ServerConfig): Promise<void>;
   size(path: string): Promise<number>;
-  downloadTo(destination: Writable, path: string): Promise<void>;
-  uploadFrom(source: Readable, path: string): Promise<void>;
+  /** startAt resumes a partial download from a byte offset (0 = from the start). */
+  downloadTo(destination: Writable, path: string, startAt?: number): Promise<void>;
+  /** append writes onto an existing remote file instead of replacing it, for resuming an interrupted upload. */
+  uploadFrom(source: Readable, path: string, append?: boolean): Promise<void>;
   ensureDir(dir: string): Promise<void>;
   close(): void;
+}
+
+/** True for errors that look transient (network blips) and are worth retrying, as opposed to permanent ones (bad creds, missing file). */
+export function isRetryableTransferError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/rejected the username\/password|refused the connection|resolve the hostname|exceeds your|invalid|not found|no such file|permission denied/i.test(message)) {
+    return false;
+  }
+  return true;
 }
 
 /** Turns low-level connection errors into messages that point at the likely fix. */
@@ -84,12 +95,16 @@ class FtpTransferClient implements TransferClient {
     return this.client.size(path);
   }
 
-  async downloadTo(destination: Writable, path: string) {
-    await this.client.downloadTo(destination, path);
+  async downloadTo(destination: Writable, path: string, startAt = 0) {
+    await this.client.downloadTo(destination, path, startAt);
   }
 
-  async uploadFrom(source: Readable, path: string) {
-    await this.client.uploadFrom(source, path);
+  async uploadFrom(source: Readable, path: string, append = false) {
+    if (append) {
+      await this.client.appendFrom(source, path);
+    } else {
+      await this.client.uploadFrom(source, path);
+    }
   }
 
   async ensureDir(dir: string) {
@@ -122,12 +137,19 @@ class SftpTransferClient implements TransferClient {
     return stat.size;
   }
 
-  async downloadTo(destination: Writable, path: string) {
-    await this.client.get(path, destination);
+  async downloadTo(destination: Writable, path: string, startAt = 0) {
+    // @types/ssh2-sftp-client's ReadStreamOptions omits `start`, even though
+    // ssh2-sftp-client forwards it verbatim to ssh2's createReadStream,
+    // which does support it — hence the cast.
+    const options =
+      startAt > 0
+        ? ({ readStreamOptions: { start: startAt } } as SftpClient.TransferOptions)
+        : undefined;
+    await this.client.get(path, destination, options);
   }
 
-  async uploadFrom(source: Readable, path: string) {
-    await this.client.put(source, path);
+  async uploadFrom(source: Readable, path: string, append = false) {
+    await this.client.put(source, path, append ? { writeStreamOptions: { flags: "a" } } : undefined);
   }
 
   async ensureDir(dir: string) {
