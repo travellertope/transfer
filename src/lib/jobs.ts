@@ -99,6 +99,24 @@ export function jobSnapshot(job: TransferJob) {
   };
 }
 
+/** All of a user's jobs, newest first — for showing "in progress" transfers on the History page. */
+export function listJobsForUser(userId: number): TransferJob[] {
+  return [...jobs.values()]
+    .filter((job) => job.userId === userId)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** Same as jobSnapshot, plus non-secret host/path so a list view can show a route label. */
+export function jobListSnapshot(job: TransferJob) {
+  return {
+    ...jobSnapshot(job),
+    sourceHost: job.source.host,
+    sourcePath: job.source.path,
+    destHost: job.destination.host,
+    destPath: job.destination.path,
+  };
+}
+
 // Old jobs are cleaned up periodically so the map doesn't grow unbounded on a
 // long-lived server. Terminal jobs are kept around for a while so a client
 // that was slow to poll still sees the final result.
