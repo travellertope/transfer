@@ -153,7 +153,7 @@ export interface TransferRecord {
   dest_host: string;
   dest_path: string;
   bytes: number;
-  status: "success" | "failed";
+  status: "in_progress" | "success" | "failed";
   error: string;
   // Full connection details for one-click retry. Only present on transfers
   // recorded after retry support shipped; older entries have these as null.
@@ -186,6 +186,20 @@ export async function addHistory(
     method: "POST",
     headers: authHeaders(token),
     body: JSON.stringify(body),
+  });
+  const data = await parseOrThrow<{ transfer: TransferRecord }>(res);
+  return data.transfer;
+}
+
+export async function updateHistory(
+  token: string,
+  id: string,
+  patch: Partial<Pick<TransferRecord, "status" | "bytes" | "error">>
+): Promise<TransferRecord> {
+  const res = await fetch(wpUrl(`/history/${id}`), {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(patch),
   });
   const data = await parseOrThrow<{ transfer: TransferRecord }>(res);
   return data.transfer;

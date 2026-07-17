@@ -21,11 +21,18 @@ interface ActiveJob {
 
 const POLL_MS = 2000;
 
+const STATUS_LABEL: Record<string, string> = {
+  all: "All",
+  in_progress: "In Progress",
+  success: "Success",
+  failed: "Failed",
+};
+
 export default function HistoryPage() {
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
   const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "success" | "failed">("all");
+  const [filter, setFilter] = useState<"all" | "in_progress" | "success" | "failed">("all");
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [retryError, setRetryError] = useState("");
   const prevActiveCount = useRef(0);
@@ -112,17 +119,17 @@ export default function HistoryPage() {
           <p className="text-slate-500 text-sm mt-1">Last {transfers.length} transfers stored.</p>
         </div>
         <div className="flex items-center gap-2">
-          {(["all", "success", "failed"] as const).map((f) => (
+          {(["all", "in_progress", "success", "failed"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 filter === f
                   ? "bg-primary/10 text-primary-light"
                   : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
-              {f}
+              {STATUS_LABEL[f]}
             </button>
           ))}
         </div>
@@ -179,7 +186,7 @@ export default function HistoryPage() {
         <div className="glass-card rounded-2xl p-12 text-center">
           <ArrowUpDown className="w-8 h-8 text-slate-400 mx-auto mb-3" />
           <p className="text-slate-900 dark:text-white font-medium mb-1">
-            {filter === "all" ? "No transfers yet" : `No ${filter} transfers`}
+            {filter === "all" ? "No transfers yet" : `No ${STATUS_LABEL[filter].toLowerCase()} transfers`}
           </p>
           {filter === "all" && (
             <>
@@ -229,6 +236,10 @@ export default function HistoryPage() {
                     {t.status === "success" ? (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Done
+                      </span>
+                    ) : t.status === "in_progress" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> In Progress
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">

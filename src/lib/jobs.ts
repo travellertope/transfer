@@ -16,6 +16,8 @@ export interface TransferJob {
   isPro: boolean;
   /** The app's own origin (e.g. https://airftp.example.com), captured at job creation for building links in completion emails sent later from the background worker, which has no request of its own. */
   appOrigin: string;
+  /** WP history record id, set once the initial "in_progress" record is written, so the worker can update that same record on completion instead of creating a new one. Null if that initial write failed or hasn't happened yet — the worker falls back to creating a fresh record in that case. */
+  historyId: string | null;
   source: ServerConfig;
   destination: ServerConfig;
   status: JobStatus;
@@ -55,6 +57,7 @@ export function createJob(input: {
     wpToken: input.wpToken,
     isPro: input.isPro,
     appOrigin: input.appOrigin,
+    historyId: null,
     source: input.source,
     destination: input.destination,
     status: "queued",
