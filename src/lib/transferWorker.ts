@@ -1,6 +1,6 @@
 import { PassThrough } from "stream";
 import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
-import { addHistory } from "./wordpress";
+import { addHistory, notifyTransferComplete } from "./wordpress";
 import { getJob, updateJob, type TransferJob } from "./jobs";
 
 /**
@@ -125,6 +125,7 @@ async function runJob(jobId: string): Promise<void> {
       });
 
       recordHistory(job, "success", finalBytes, "");
+      notifyComplete(job, "transfer.success", finalBytes, "");
       return;
     } catch (err) {
       sourceClient?.close();
@@ -148,6 +149,7 @@ async function runJob(jobId: string): Promise<void> {
 
   updateJob(jobId, { status: "failed", error: lastError || "Transfer failed." });
   recordHistory(job, "failed", job.bytesTransferred, lastError);
+  notifyComplete(job, "transfer.failed", job.bytesTransferred, lastError);
 }
 
 function recordHistory(job: TransferJob, status: "success" | "failed", bytes: number, error: string): void {
@@ -163,5 +165,20 @@ function recordHistory(job: TransferJob, status: "success" | "failed", bytes: nu
     destination: job.destination,
   }).catch(() => {
     /* history is best-effort; don't let a WP hiccup mask the transfer outcome */
+  });
+}
+
+/** Completion email — a Pro perk, matching Saved Servers and Google Drive. */
+function notifyComplete(job: TransferJob, event: "transfer.success" | "transfer.failed", bytes: number, error: string): void {
+  if (!job.isPro) return;
+
+  notifyTransferComplete(job.wpToken, event, {
+    sourceHost: job.source.host,
+    destHost: job.destination.host,
+    bytes,
+    error,
+    historyUrl: `${job.appOrigin}/dashboard/history`,
+  }).catch(() => {
+    /* notification is best-effort; don't let it mask the transfer outcome */
   });
 }

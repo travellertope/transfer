@@ -191,6 +191,26 @@ export async function addHistory(
   return data.transfer;
 }
 
+export async function notifyTransferComplete(
+  token: string,
+  event: "transfer.success" | "transfer.failed",
+  details: { sourceHost: string; destHost: string; bytes: number; error: string; historyUrl: string }
+): Promise<void> {
+  const res = await fetch(wpUrl("/notify"), {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({
+      event,
+      sourceHost: details.sourceHost,
+      destHost: details.destHost,
+      bytes: details.bytes,
+      error: details.error,
+      historyUrl: details.historyUrl,
+    }),
+  });
+  await parseOrThrow(res);
+}
+
 export async function updateUser(
   token: string,
   fields: { name?: string; email?: string; currentPassword?: string; newPassword?: string }

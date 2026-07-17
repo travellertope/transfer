@@ -30,7 +30,7 @@ const faqs = [
   },
   {
     q: "Do I need to keep the browser tab open?",
-    a: "No. Once you initiate the transfer, the stream runs on our server independently. You can close the tab and check the destination server later. Pro plans include email/webhook notifications on completion.",
+    a: "No. Once you initiate the transfer, the stream runs on our server independently. You can close the tab and check the destination server later. Pro plans get an email as soon as it finishes, whether it succeeds or fails.",
   },
 ];
 

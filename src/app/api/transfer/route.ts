@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
     userId: user.id,
     wpToken: token,
     isPro: user.isPro,
+    appOrigin: req.nextUrl.origin,
     source,
     destination,
     totalBytes: fileSize,

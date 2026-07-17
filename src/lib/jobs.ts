@@ -14,6 +14,8 @@ export interface TransferJob {
   userId: number;
   wpToken: string;
   isPro: boolean;
+  /** The app's own origin (e.g. https://airftp.example.com), captured at job creation for building links in completion emails sent later from the background worker, which has no request of its own. */
+  appOrigin: string;
   source: ServerConfig;
   destination: ServerConfig;
   status: JobStatus;
@@ -41,6 +43,7 @@ export function createJob(input: {
   userId: number;
   wpToken: string;
   isPro: boolean;
+  appOrigin: string;
   source: ServerConfig;
   destination: ServerConfig;
   totalBytes: number;
@@ -51,6 +54,7 @@ export function createJob(input: {
     userId: input.userId,
     wpToken: input.wpToken,
     isPro: input.isPro,
+    appOrigin: input.appOrigin,
     source: input.source,
     destination: input.destination,
     status: "queued",
