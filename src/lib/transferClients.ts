@@ -7,6 +7,12 @@ import { driveErrorMessage, refreshAccessToken } from "./googleDrive";
 
 export type Protocol = "ftp" | "sftp" | "gdrive";
 
+// ssh2's SFTP read/write streams issue one request per highWaterMark-sized
+// chunk and wait for the round-trip before the next — bumping this well
+// past the 64KB library default cuts round-trips substantially on
+// real-latency connections, without changing any protocol behavior.
+const SFTP_STREAM_HIGH_WATER_MARK = 256 * 1024;
+
 export interface ServerConfig {
   protocol: Protocol;
   host: string;
@@ -156,18 +162,36 @@ class SftpTransferClient implements TransferClient {
   }
 
   async downloadTo(destination: Writable, path: string, startAt = 0) {
-    // @types/ssh2-sftp-client's ReadStreamOptions omits `start`, even though
-    // ssh2-sftp-client forwards it verbatim to ssh2's createReadStream,
-    // which does support it — hence the cast.
-    const options =
-      startAt > 0
-        ? ({ readStreamOptions: { start: startAt } } as SftpClient.TransferOptions)
-        : undefined;
+    // ssh2's plain (non-fastGet) SFTP read stream issues one read request
+    // per highWaterMark-sized chunk and waits for the full round-trip
+    // before requesting more — there's no pipelining. Its default is 64KB,
+    // which on any real-latency connection caps throughput hard (e.g. ~850
+    // KB/s at 75ms RTT). We can't get true concurrent reads without
+    // bypassing the stream API entirely (fastGet/fastPut only work against
+    // local files, not the remote-to-remote streams this app is built on),
+    // but requesting much bigger chunks per round-trip meaningfully cuts
+    // the number of round-trips for the same amount of data.
+    //
+    // @types/ssh2-sftp-client's ReadStreamOptions omits `start`/`highWaterMark`,
+    // even though ssh2-sftp-client forwards them verbatim to ssh2's
+    // createReadStream, which does support both — hence the cast.
+    const options = {
+      readStreamOptions: {
+        highWaterMark: SFTP_STREAM_HIGH_WATER_MARK,
+        ...(startAt > 0 ? { start: startAt } : {}),
+      },
+    } as SftpClient.TransferOptions;
     await this.client.get(path, destination, options);
   }
 
   async uploadFrom(source: Readable, path: string, append = false) {
-    await this.client.put(source, path, append ? { writeStreamOptions: { flags: "a" } } : undefined);
+    const options = {
+      writeStreamOptions: {
+        highWaterMark: SFTP_STREAM_HIGH_WATER_MARK,
+        ...(append ? { flags: "a" as const } : {}),
+      },
+    };
+    await this.client.put(source, path, options);
   }
 
   async ensureDir(dir: string) {

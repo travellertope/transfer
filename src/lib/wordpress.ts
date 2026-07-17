@@ -278,6 +278,8 @@ export interface Webhook {
   events: string[];
   active: boolean;
   created_at: string;
+  /** Used to sign the X-AirFTP-Signature header on delivered payloads (HMAC-SHA256), so the receiver can verify authenticity. */
+  secret: string;
 }
 
 export async function listWebhooks(token: string): Promise<Webhook[]> {

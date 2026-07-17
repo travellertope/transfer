@@ -1,6 +1,7 @@
 import { PassThrough } from "stream";
 import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
-import { addHistory, updateHistory, notifyTransferComplete } from "./wordpress";
+import { addHistory, updateHistory, notifyTransferComplete, listWebhooks } from "./wordpress";
+import { dispatchWebhooksForEvent } from "./webhookDispatch";
 import { getJob, updateJob, type TransferJob } from "./jobs";
 
 /**
@@ -106,9 +107,17 @@ async function runJob(jobId: string): Promise<void> {
 
       const pipe = new PassThrough();
       let sessionBytes = 0;
+      let lastProgressUpdate = 0;
       pipe.on("data", (chunk: Buffer) => {
         sessionBytes += chunk.length;
-        updateJob(jobId, { bytesTransferred: resumeOffset + sessionBytes });
+        // The client only polls every couple of seconds — updating the job
+        // record on every single chunk (tens of thousands of times for a
+        // large file) is pure overhead. Throttle to a few times a second.
+        const now = Date.now();
+        if (now - lastProgressUpdate >= 250) {
+          lastProgressUpdate = now;
+          updateJob(jobId, { bytesTransferred: resumeOffset + sessionBytes });
+        }
       });
 
       await Promise.all([
@@ -128,6 +137,7 @@ async function runJob(jobId: string): Promise<void> {
 
       recordHistory(job, "success", finalBytes, "");
       notifyComplete(job, "transfer.success", finalBytes, "");
+      dispatchWebhooks(job, "transfer.success", finalBytes, "");
       return;
     } catch (err) {
       sourceClient?.close();
@@ -153,6 +163,7 @@ async function runJob(jobId: string): Promise<void> {
   updateJob(jobId, { status: "failed", error: lastError || "Transfer failed." });
   recordHistory(job, "failed", job.bytesTransferred, lastError);
   notifyComplete(job, "transfer.failed", job.bytesTransferred, lastError);
+  dispatchWebhooks(job, "transfer.failed", job.bytesTransferred, lastError);
 }
 
 function recordHistory(job: TransferJob, status: "success" | "failed", bytes: number, error: string): void {
@@ -196,4 +207,24 @@ function notifyComplete(job: TransferJob, event: "transfer.success" | "transfer.
   }).catch(() => {
     /* notification is best-effort; don't let it mask the transfer outcome */
   });
+}
+
+/** Webhook delivery — a Pro perk, same gating as the completion email. */
+function dispatchWebhooks(job: TransferJob, event: "transfer.success" | "transfer.failed", bytes: number, error: string): void {
+  if (!job.isPro) return;
+
+  listWebhooks(job.wpToken)
+    .then((webhooks) =>
+      dispatchWebhooksForEvent(webhooks, event, {
+        id: job.historyId ?? job.id,
+        source_host: job.source.host,
+        dest_host: job.destination.host,
+        bytes,
+        created_at: new Date().toISOString(),
+        ...(error ? { error } : {}),
+      })
+    )
+    .catch(() => {
+      /* webhook delivery is best-effort; don't let it mask the transfer outcome */
+    });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Webhook as WebhookIcon, Plus, Pencil, Trash2, X, Loader2, CheckCircle2 } from "lucide-react";
+import { Webhook as WebhookIcon, Plus, Pencil, Trash2, X, Loader2, CheckCircle2, Eye, EyeOff, Copy } from "lucide-react";
 import type { Webhook } from "@/lib/wordpress";
 
 const inputClass =
@@ -9,7 +9,7 @@ const inputClass =
 
 const ALL_EVENTS = ["transfer.success", "transfer.failed"] as const;
 
-type WebhookForm = Omit<Webhook, "id" | "created_at">;
+type WebhookForm = Omit<Webhook, "id" | "created_at" | "secret">;
 const emptyForm: WebhookForm = { label: "", url: "", events: ["transfer.success", "transfer.failed"], active: true };
 
 function WebhookModal({
@@ -94,6 +94,35 @@ function WebhookModal({
   );
 }
 
+function SecretField({ secret }: { secret: string }) {
+  const [show, setShow] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(secret);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard permission denied — nothing to do */
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1.5">
+      <code className="text-xs font-mono text-slate-500 truncate">
+        {show ? secret : "•".repeat(Math.min(secret.length, 24))}
+      </code>
+      <button type="button" onClick={() => setShow((s) => !s)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0" title={show ? "Hide" : "Show"}>
+        {show ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+      </button>
+      <button type="button" onClick={copy} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 shrink-0" title="Copy">
+        {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+    </div>
+  );
+}
+
 export default function WebhooksPage() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +193,11 @@ export default function WebhooksPage() {
     "created_at": "2026-06-30T12:00:00Z"
   }
 }`}</pre>
+        <p className="text-xs text-slate-500 mt-3">
+          Each delivery includes an <code className="font-mono">X-AirFTP-Signature: sha256=&lt;hex&gt;</code> header —
+          an HMAC-SHA256 of the raw request body, signed with the webhook&apos;s own signing secret (shown below each
+          webhook). Verify it to confirm the request actually came from us.
+        </p>
       </div>
 
       {loading ? (
@@ -199,6 +233,7 @@ export default function WebhooksPage() {
                     </span>
                   ))}
                 </div>
+                {w.secret && <SecretField secret={w.secret} />}
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => { setEditing(w); setShowModal(true); }} className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors" title="Edit">

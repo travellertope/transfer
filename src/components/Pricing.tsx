@@ -35,7 +35,7 @@ const plans = [
       "Transfer history",
       "Webhook notifications",
     ],
-    cta: "Start Free Trial",
+    cta: "Start 14-Day Free Trial",
     highlight: true,
   },
   {
@@ -134,6 +134,9 @@ export default function Pricing() {
                   {plan.price}
                 </span>
                 <span className="text-slate-500 ml-1">{plan.period}</span>
+                {plan.name === "Pro" && (
+                  <p className="text-xs text-slate-500 mt-1">14 days free, then {plan.price}{plan.period} — cancel anytime</p>
+                )}
               </div>
 
               <ul className="space-y-3 mb-8">
