@@ -26,6 +26,52 @@ function airftp_get_user_history($user_id) {
     return is_array($history) ? $history : [];
 }
 
+/**
+ * Encrypts a source/destination server config for storage, so a failed
+ * transfer can be retried later without the user re-entering credentials.
+ * Returns null if the input doesn't look like a usable config (e.g. an
+ * older client that didn't send one).
+ */
+function airftp_sanitize_transfer_config($param) {
+    if (!is_array($param)) {
+        return null;
+    }
+
+    $host = sanitize_text_field((string) ($param['host'] ?? ''));
+    $ftp_user = sanitize_text_field((string) ($param['user'] ?? ''));
+    $path = sanitize_text_field((string) ($param['path'] ?? ''));
+    $password = (string) ($param['password'] ?? '');
+
+    if (!$host || !$ftp_user || !$path) {
+        return null;
+    }
+
+    return [
+        'protocol' => airftp_sanitize_protocol((string) ($param['protocol'] ?? '')),
+        'host' => $host,
+        'port' => (!empty($param['port'])) ? (int) $param['port'] : null,
+        'user' => $ftp_user,
+        'password' => $password !== '' ? airftp_encrypt($password) : '',
+        'path' => $path,
+    ];
+}
+
+/** Decrypts a stored config back into a usable server config for the app. */
+function airftp_transfer_config_payload($cfg) {
+    if (!is_array($cfg)) {
+        return null;
+    }
+
+    return [
+        'protocol' => (isset($cfg['protocol']) && $cfg['protocol'] === 'sftp') ? 'sftp' : 'ftp',
+        'host' => $cfg['host'] ?? '',
+        'port' => (!empty($cfg['port'])) ? (int) $cfg['port'] : null,
+        'user' => $cfg['user'] ?? '',
+        'password' => !empty($cfg['password']) ? airftp_decrypt($cfg['password']) : '',
+        'path' => $cfg['path'] ?? '',
+    ];
+}
+
 function airftp_history_payload($record) {
     return [
         'id' => $record['id'],
@@ -37,6 +83,10 @@ function airftp_history_payload($record) {
         'bytes' => (int) $record['bytes'],
         'status' => $record['status'],
         'error' => $record['error'],
+        // Only present for transfers recorded after retry support shipped —
+        // older entries retryable=false since there's nothing to retry with.
+        'source' => isset($record['source']) ? airftp_transfer_config_payload($record['source']) : null,
+        'destination' => isset($record['destination']) ? airftp_transfer_config_payload($record['destination']) : null,
     ];
 }
 
@@ -72,6 +122,8 @@ function airftp_handle_add_history(WP_REST_Request $request) {
         'bytes' => (int) $request->get_param('bytes'),
         'status' => $status,
         'error' => sanitize_text_field((string) $request->get_param('error')),
+        'source' => airftp_sanitize_transfer_config($request->get_param('source')),
+        'destination' => airftp_sanitize_transfer_config($request->get_param('destination')),
     ];
 
     $history = airftp_get_user_history($user->ID);

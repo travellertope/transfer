@@ -148,6 +148,8 @@ function recordHistory(job: TransferJob, status: "success" | "failed", bytes: nu
     bytes,
     status,
     error,
+    source: job.source,
+    destination: job.destination,
   }).catch(() => {
     /* history is best-effort; don't let a WP hiccup mask the transfer outcome */
   });

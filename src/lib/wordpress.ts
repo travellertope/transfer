@@ -1,3 +1,5 @@
+import type { ServerConfig } from "./transferClients";
+
 export interface WpUser {
   id: number;
   email: string;
@@ -154,6 +156,10 @@ export interface TransferRecord {
   bytes: number;
   status: "success" | "failed";
   error: string;
+  // Full connection details for one-click retry. Only present on transfers
+  // recorded after retry support shipped; older entries have these as null.
+  source: ServerConfig | null;
+  destination: ServerConfig | null;
 }
 
 export async function listHistory(token: string): Promise<TransferRecord[]> {
@@ -174,6 +180,8 @@ export async function addHistory(
     bytes: record.bytes,
     status: record.status,
     error: record.error ?? "",
+    source: record.source,
+    destination: record.destination,
   };
   const res = await fetch(wpUrl("/history"), {
     method: "POST",

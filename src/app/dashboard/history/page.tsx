@@ -1,22 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, XCircle, Loader2, ArrowUpDown } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ArrowUpDown, RotateCw, AlertCircle } from "lucide-react";
 import type { TransferRecord } from "@/lib/wordpress";
 import { formatBytes } from "@/lib/limits";
 
+interface ActiveJob {
+  id: string;
+  status: "queued" | "connecting" | "transferring";
+  bytesTransferred: number;
+  totalBytes: number | null;
+  error: string | null;
+  message: string | null;
+  sourceHost: string;
+  sourcePath: string;
+  destHost: string;
+  destPath: string;
+}
+
+const POLL_MS = 2000;
+
 export default function HistoryPage() {
   const [transfers, setTransfers] = useState<TransferRecord[]>([]);
+  const [activeJobs, setActiveJobs] = useState<ActiveJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "success" | "failed">("all");
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState("");
+  const prevActiveCount = useRef(0);
 
   useEffect(() => {
-    fetch("/api/history")
-      .then((r) => r.json())
-      .then((d) => setTransfers(d.transfers ?? []))
-      .finally(() => setLoading(false));
+    let stopped = false;
+
+    const load = async () => {
+      const [histData, jobsData] = await Promise.all([
+        fetch("/api/history").then((r) => r.json()).catch(() => ({ transfers: [] })),
+        fetch("/api/transfer").then((r) => r.json()).catch(() => ({ jobs: [] })),
+      ]);
+      if (stopped) return;
+
+      const jobs: ActiveJob[] = jobsData.jobs ?? [];
+      // A job just finished since the last poll — refetch history again shortly
+      // so the newly-written record shows up without waiting a full interval.
+      if (prevActiveCount.current > jobs.length) {
+        setTimeout(() => {
+          fetch("/api/history").then((r) => r.json()).then((d) => {
+            if (!stopped) setTransfers(d.transfers ?? []);
+          }).catch(() => {});
+        }, 800);
+      }
+      prevActiveCount.current = jobs.length;
+
+      setTransfers(histData.transfers ?? []);
+      setActiveJobs(jobs);
+      setLoading(false);
+    };
+
+    load();
+    const interval = setInterval(load, POLL_MS);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
   }, []);
+
+  const handleRetry = async (t: TransferRecord) => {
+    if (!t.source || !t.destination) return;
+    setRetryError("");
+    setRetryingId(t.id);
+    try {
+      const res = await fetch("/api/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: t.source, destination: t.destination }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setRetryError(data.error || "Retry failed to start.");
+        return;
+      }
+      setActiveJobs((prev) => [
+        {
+          id: data.job.id,
+          status: data.job.status,
+          bytesTransferred: data.job.bytesTransferred,
+          totalBytes: data.job.totalBytes,
+          error: data.job.error,
+          message: data.job.message,
+          sourceHost: t.source_host,
+          sourcePath: t.source_path,
+          destHost: t.dest_host,
+          destPath: t.dest_path,
+        },
+        ...prev,
+      ]);
+    } catch {
+      setRetryError("Network error. Please try again.");
+    } finally {
+      setRetryingId(null);
+    }
+  };
 
   const filtered = filter === "all" ? transfers : transfers.filter((t) => t.status === filter);
 
@@ -43,6 +127,49 @@ export default function HistoryPage() {
           ))}
         </div>
       </div>
+
+      {retryError && (
+        <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 mb-4">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{retryError}</span>
+        </div>
+      )}
+
+      {activeJobs.length > 0 && (
+        <div className="glass-card rounded-2xl overflow-hidden mb-6">
+          <div className="px-5 py-3 border-b border-slate-200 dark:border-slate-800">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">In Progress</h2>
+          </div>
+          <div className="divide-y divide-slate-200 dark:divide-slate-800">
+            {activeJobs.map((job) => {
+              const pct =
+                job.totalBytes && job.totalBytes > 0
+                  ? Math.min(100, Math.round((job.bytesTransferred / job.totalBytes) * 100))
+                  : null;
+              return (
+                <div key={job.id} className="px-5 py-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Loader2 className="w-4 h-4 text-primary-light animate-spin shrink-0" />
+                    <p className="font-mono text-xs text-slate-900 dark:text-white truncate">
+                      {job.sourceHost} <span className="text-slate-400">→</span> {job.destHost}
+                    </p>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden max-w-sm">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: pct !== null ? `${pct}%` : "30%" }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1.5 font-mono">
+                    {formatBytes(job.bytesTransferred)}
+                    {job.totalBytes ? ` / ${formatBytes(job.totalBytes)} (${pct}%)` : ""}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="glass-card rounded-2xl p-12 text-center">
@@ -75,6 +202,7 @@ export default function HistoryPage() {
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Size</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Status</th>
                 <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">Date</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -111,6 +239,23 @@ export default function HistoryPage() {
                   <td className="px-5 py-4 text-slate-500 text-xs hidden md:table-cell">
                     <p>{new Date(t.created_at).toLocaleDateString()}</p>
                     <p className="text-slate-400">{new Date(t.created_at).toLocaleTimeString()}</p>
+                  </td>
+                  <td className="px-5 py-4 text-right">
+                    {t.status === "failed" && t.source && t.destination && (
+                      <button
+                        onClick={() => handleRetry(t)}
+                        disabled={retryingId === t.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-primary-light hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+                        title="Retry this transfer"
+                      >
+                        {retryingId === t.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RotateCw className="w-3.5 h-3.5" />
+                        )}
+                        Retry
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

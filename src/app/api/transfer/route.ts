@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
 import { limitForUser, formatBytes } from "@/lib/limits";
 import { createTransferClient, type ServerConfig } from "@/lib/transferClients";
-import { createJob, jobSnapshot } from "@/lib/jobs";
+import { createJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
@@ -10,6 +10,20 @@ function normalizeConfig(config: ServerConfig): ServerConfig {
     ...config,
     protocol: config.protocol === "sftp" ? "sftp" : "ftp",
   };
+}
+
+/** Active (non-terminal) transfers for the current user, e.g. for showing progress on the History page. */
+export async function GET(req: NextRequest) {
+  const user = await getSessionUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
+  const jobs = listJobsForUser(user.id)
+    .filter((job) => job.status !== "success" && job.status !== "failed" && job.status !== "cancelled")
+    .map(jobListSnapshot);
+
+  return NextResponse.json({ jobs });
 }
 
 export async function POST(req: NextRequest) {
