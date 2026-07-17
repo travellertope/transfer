@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Server,
   Plus,
@@ -11,7 +12,10 @@ import {
   Eye,
   EyeOff,
   CheckCircle2,
+  HardDrive,
+  AlertCircle,
 } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 import type { SavedConnection } from "@/lib/wordpress";
 
 const inputClass =
@@ -20,7 +24,7 @@ const inputClass =
 type FormData = Omit<SavedConnection, "id"> & { password: string };
 
 const emptyForm: FormData = {
-  label: "", role: "source", protocol: "ftp", host: "", user: "", password: "", path: "",
+  label: "", protocol: "ftp", host: "", user: "", password: "", path: "",
 };
 
 function ServerModal({
@@ -77,18 +81,9 @@ function ServerModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Label</label>
-              <input value={form.label} onChange={set("label")} placeholder="Production" className={inputClass} required />
-            </div>
-            <div>
-              <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Role</label>
-              <select value={form.role} onChange={set("role")} className={inputClass}>
-                <option value="source">Source</option>
-                <option value="destination">Destination</option>
-              </select>
-            </div>
+          <div>
+            <label className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Label</label>
+            <input value={form.label} onChange={set("label")} placeholder="Production" className={inputClass} required />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -175,18 +170,28 @@ function ServerModal({
 }
 
 export default function ServersPage() {
+  const { user } = useAuth();
   const [connections, setConnections] = useState<SavedConnection[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<SavedConnection | undefined>();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState<string | null>(null);
+  const [gdriveConnected, setGdriveConnected] = useState(false);
+  const [gdriveError, setGdriveError] = useState("");
 
   useEffect(() => {
     fetch("/api/connections")
       .then((r) => r.json())
       .then((d) => setConnections(d.connections ?? []))
       .finally(() => setLoading(false));
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("gdrive_connected")) setGdriveConnected(true);
+    if (params.get("gdrive_error")) setGdriveError(params.get("gdrive_error") || "Failed to connect Google Drive.");
+    if (params.has("gdrive_connected") || params.has("gdrive_error")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, []);
 
   const openAdd = () => { setEditing(undefined); setShowModal(true); };
@@ -231,23 +236,50 @@ export default function ServersPage() {
     setDeletingId(null);
   };
 
-  const sources = connections.filter((c) => c.role === "source");
-  const destinations = connections.filter((c) => c.role === "destination");
-
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Saved Servers</h1>
           <p className="text-slate-500 text-sm mt-1">Credentials are encrypted at rest.</p>
         </div>
-        <button
-          onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Add Server
-        </button>
+        <div className="flex items-center gap-2">
+          {user?.isPro ? (
+            <a
+              href="/api/oauth/google/start"
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 hover:border-primary/50 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition-colors"
+            >
+              <HardDrive className="w-4 h-4" /> Connect Google Drive
+            </a>
+          ) : (
+            <Link
+              href="/#pricing"
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 text-slate-400 text-sm font-semibold rounded-xl transition-colors"
+              title="Google Drive is a Pro feature"
+            >
+              <HardDrive className="w-4 h-4" /> Connect Google Drive (Pro)
+            </Link>
+          )}
+          <button
+            onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-colors"
+          >
+            <Plus className="w-4 h-4" /> Add Server
+          </button>
+        </div>
       </div>
+
+      {gdriveConnected && (
+        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+          <CheckCircle2 className="w-4 h-4" /> Google Drive connected.
+        </div>
+      )}
+      {gdriveError && (
+        <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 mb-4">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{gdriveError === "pro_required" ? "Google Drive is a Pro feature — upgrade to connect an account." : gdriveError}</span>
+        </div>
+      )}
 
       {loading ? (
         <div className="glass-card rounded-2xl p-12 text-center">
@@ -263,77 +295,70 @@ export default function ServersPage() {
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
-          {[{ label: "Source Servers", items: sources, color: "bg-emerald-500/20 text-emerald-400" },
-            { label: "Destination Servers", items: destinations, color: "bg-blue-500/20 text-blue-400" }]
-            .filter(({ items }) => items.length > 0)
-            .map(({ label, items, color }) => (
-              <div key={label}>
-                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{label}</h2>
-                <div className="glass-card rounded-2xl overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-800">
-                        <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Label</th>
-                        <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Host</th>
-                        <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">Path</th>
-                        <th className="text-right px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                      {items.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${color}`}>
-                                <Server className="w-3.5 h-3.5" />
-                              </div>
-                              <span className="font-medium text-slate-900 dark:text-white">
-                                {c.label}
-                                {justSaved === c.id && (
-                                  <span className="ml-2 inline-flex items-center gap-1 text-emerald-500 text-xs">
-                                    <CheckCircle2 className="w-3 h-3" /> Saved
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
-                            <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
-                              {c.protocol === "sftp" ? "SFTP" : "FTP"}
-                            </span>
-                            {c.host}
-                            {c.port ? `:${c.port}` : ""}
-                          </td>
-                          <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">{c.path}</td>
-                          <td className="px-5 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => openEdit(c)}
-                                className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"
-                                title="Edit"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(c.id)}
-                                disabled={deletingId === c.id}
-                                className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                title="Delete"
-                              >
-                                {deletingId === c.id
-                                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                                  : <Trash2 className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
+        <div className="glass-card rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800">
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Label</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden sm:table-cell">Host</th>
+                <th className="text-left px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide hidden md:table-cell">Path</th>
+                <th className="text-right px-5 py-3 text-xs font-medium text-slate-500 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {connections.map((c) => (
+                <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-primary/20 text-primary-light">
+                        {c.protocol === "gdrive" ? <HardDrive className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
+                      </div>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {c.label}
+                        {justSaved === c.id && (
+                          <span className="ml-2 inline-flex items-center gap-1 text-emerald-500 text-xs">
+                            <CheckCircle2 className="w-3 h-3" /> Saved
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
+                    <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
+                      {c.protocol === "gdrive" ? "DRIVE" : c.protocol === "sftp" ? "SFTP" : "FTP"}
+                    </span>
+                    {c.protocol === "gdrive" ? c.host : `${c.host}${c.port ? `:${c.port}` : ""}`}
+                  </td>
+                  <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">
+                    {c.protocol === "gdrive" ? "Chosen per transfer" : c.path}
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {c.protocol !== "gdrive" && (
+                        <button
+                          onClick={() => openEdit(c)}
+                          className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(c.id)}
+                        disabled={deletingId === c.id}
+                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        title="Delete"
+                      >
+                        {deletingId === c.id
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

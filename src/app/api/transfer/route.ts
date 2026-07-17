@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
 import { limitForUser, formatBytes } from "@/lib/limits";
-import { createTransferClient, type ServerConfig } from "@/lib/transferClients";
+import { createTransferClient, type Protocol, type ServerConfig } from "@/lib/transferClients";
 import { createJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
+  const protocols: Protocol[] = ["ftp", "sftp", "gdrive"];
   return {
     ...config,
-    protocol: config.protocol === "sftp" ? "sftp" : "ftp",
+    protocol: protocols.includes(config.protocol) ? config.protocol : "ftp",
   };
 }
 
@@ -53,6 +54,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if ((source.protocol === "gdrive" || destination.protocol === "gdrive") && !user.isPro) {
+    return NextResponse.json(
+      { success: false, error: "Google Drive transfers are a Pro feature. Upgrade to use them." },
+      { status: 403 }
+    );
+  }
+
   // Quick probe up front: confirms the source is reachable and checks the
   // file size against the tier limit before committing to a background job,
   // so obviously-bad input still fails fast instead of queueing.
@@ -89,6 +97,7 @@ export async function POST(req: NextRequest) {
     userId: user.id,
     wpToken: token,
     isPro: user.isPro,
+    appOrigin: req.nextUrl.origin,
     source,
     destination,
     totalBytes: fileSize,

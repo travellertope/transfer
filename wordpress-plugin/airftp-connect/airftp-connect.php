@@ -41,6 +41,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/account.php';
 require_once plugin_dir_path(__FILE__) . 'includes/history.php';
 require_once plugin_dir_path(__FILE__) . 'includes/api-keys.php';
 require_once plugin_dir_path(__FILE__) . 'includes/webhooks.php';
+require_once plugin_dir_path(__FILE__) . 'includes/notifications.php';
 require_once plugin_dir_path(__FILE__) . 'includes/user-profile.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin-settings.php';
 require_once plugin_dir_path(__FILE__) . 'includes/billing.php';

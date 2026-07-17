@@ -1,6 +1,6 @@
 import { PassThrough } from "stream";
 import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
-import { addHistory } from "./wordpress";
+import { addHistory, notifyTransferComplete } from "./wordpress";
 import { getJob, updateJob, type TransferJob } from "./jobs";
 
 /**
@@ -78,9 +78,13 @@ async function runJob(jobId: string): Promise<void> {
         await destClient.ensureDir(destDir);
       }
 
-      // On a retry, resume from however much already landed on the destination
-      // rather than starting the whole file over.
-      const resumeOffset = job.attempts > 1 ? await sizeSafe(destClient, job.destination.path) : 0;
+      // Google Drive has no byte-offset "append to existing file" — a retry
+      // just re-uploads the file from scratch, so resume only applies to
+      // FTP/SFTP destinations.
+      const resumeOffset =
+        job.attempts > 1 && job.destination.protocol !== "gdrive"
+          ? await sizeSafe(destClient, job.destination.path)
+          : 0;
 
       if (job.cancelRequested) {
         sourceClient.close();
@@ -88,6 +92,13 @@ async function runJob(jobId: string): Promise<void> {
         updateJob(jobId, { status: "cancelled", message: "Cancelled." });
         return;
       }
+
+      // Drive destinations are "<folderId>" only — it needs a file name too,
+      // which it doesn't have a path segment for, so borrow the source's.
+      const destinationPath =
+        job.destination.protocol === "gdrive"
+          ? `${job.destination.path}/${await sourceClient.fileName(job.source.path)}`
+          : job.destination.path;
 
       updateJob(jobId, { status: "transferring", bytesTransferred: resumeOffset });
 
@@ -100,7 +111,7 @@ async function runJob(jobId: string): Promise<void> {
 
       await Promise.all([
         sourceClient.downloadTo(pipe, job.source.path, resumeOffset),
-        destClient.uploadFrom(pipe, job.destination.path, resumeOffset > 0),
+        destClient.uploadFrom(pipe, destinationPath, resumeOffset > 0),
       ]);
 
       sourceClient.close();
@@ -114,6 +125,7 @@ async function runJob(jobId: string): Promise<void> {
       });
 
       recordHistory(job, "success", finalBytes, "");
+      notifyComplete(job, "transfer.success", finalBytes, "");
       return;
     } catch (err) {
       sourceClient?.close();
@@ -137,6 +149,7 @@ async function runJob(jobId: string): Promise<void> {
 
   updateJob(jobId, { status: "failed", error: lastError || "Transfer failed." });
   recordHistory(job, "failed", job.bytesTransferred, lastError);
+  notifyComplete(job, "transfer.failed", job.bytesTransferred, lastError);
 }
 
 function recordHistory(job: TransferJob, status: "success" | "failed", bytes: number, error: string): void {
@@ -152,5 +165,20 @@ function recordHistory(job: TransferJob, status: "success" | "failed", bytes: nu
     destination: job.destination,
   }).catch(() => {
     /* history is best-effort; don't let a WP hiccup mask the transfer outcome */
+  });
+}
+
+/** Completion email — a Pro perk, matching Saved Servers and Google Drive. */
+function notifyComplete(job: TransferJob, event: "transfer.success" | "transfer.failed", bytes: number, error: string): void {
+  if (!job.isPro) return;
+
+  notifyTransferComplete(job.wpToken, event, {
+    sourceHost: job.source.host,
+    destHost: job.destination.host,
+    bytes,
+    error,
+    historyUrl: `${job.appOrigin}/dashboard/history`,
+  }).catch(() => {
+    /* notification is best-effort; don't let it mask the transfer outcome */
   });
 }

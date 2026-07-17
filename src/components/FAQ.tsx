@@ -10,11 +10,11 @@ const faqs = [
   },
   {
     q: "What's the maximum file size?",
-    a: "On the Free plan, up to 1GB. Pro supports 10GB, and Enterprise has no limit. The underlying streaming architecture can handle files of any size — it processes data in small 8KB chunks so memory usage stays constant regardless of file size.",
+    a: "On the Free plan, up to 800MB. Pro supports 10GB, and Enterprise has no limit. The underlying streaming architecture can handle files of any size — it streams data directly from source to destination instead of buffering it in memory, so memory usage stays constant regardless of file size.",
   },
   {
     q: "Are my FTP credentials safe?",
-    a: "Yes. Your credentials are sent over HTTPS to our server, used only for the duration of the active transfer session, and immediately discarded. We never write credentials to disk, logs, or any persistent storage.",
+    a: "Yes. Credentials are sent over HTTPS and never written to logs. By default they're used only for the active transfer and then discarded. If you choose to save a server, or retry a past transfer from your History, those credentials are stored encrypted at rest and only ever decrypted for your own authenticated requests.",
   },
   {
     q: "Can I transfer between different hosting providers?",
@@ -22,15 +22,15 @@ const faqs = [
   },
   {
     q: "What protocols are supported?",
-    a: "The Free plan supports standard FTP. Pro and Enterprise plans add SFTP (SSH File Transfer Protocol) support for encrypted transfers. We recommend SFTP whenever available.",
+    a: "FTP and SFTP (SSH File Transfer Protocol) are both available on every plan — SFTP isn't gated by tier, and we recommend it whenever your servers support it. Pro also unlocks Google Drive as a source or destination alongside FTP/SFTP servers.",
   },
   {
     q: "What happens if the transfer is interrupted?",
-    a: "If the connection drops, you'll see an error status. Simply start a new transfer — we don't create partial files that could cause issues. Pro plans include automatic retry logic.",
+    a: "The transfer runs on our servers independently of your browser, so closing the tab or losing your own connection doesn't stop it. If the connection to either server drops mid-transfer, we automatically retry with backoff — resuming from the last byte that landed for FTP/SFTP (Google Drive re-uploads from scratch, since Drive doesn't support that kind of resume). If every retry fails, you can re-run it with one click from your Transfer History without re-entering credentials.",
   },
   {
     q: "Do I need to keep the browser tab open?",
-    a: "No. Once you initiate the transfer, the stream runs on our server independently. You can close the tab and check the destination server later. Pro plans include email/webhook notifications on completion.",
+    a: "No. Once you initiate the transfer, the stream runs on our server independently. You can close the tab and check the destination server later. Pro plans get an email as soon as it finishes, whether it succeeds or fails.",
   },
 ];
 
