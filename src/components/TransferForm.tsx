@@ -34,6 +34,8 @@ export default function TransferForm() {
   const [sourceLabel, setSourceLabel] = useState("");
   const [saveDest, setSaveDest] = useState(false);
   const [destLabel, setDestLabel] = useState("");
+  const [sourceSaveStatus, setSourceSaveStatus] = useState<"success" | "error" | undefined>();
+  const [destSaveStatus, setDestSaveStatus] = useState<"success" | "error" | undefined>();
 
   const { state: transfer, start, cancel } = useTransferJob();
 
@@ -88,7 +90,7 @@ export default function TransferForm() {
     user: string,
     password: string,
     path: string
-  ) => {
+  ): Promise<boolean> => {
     try {
       const res = await fetch("/api/connections", {
         method: "POST",
@@ -106,22 +108,32 @@ export default function TransferForm() {
       const data = await res.json();
       if (data.connection) {
         setConnections((prev) => [...prev, data.connection]);
+        return true;
       }
+      return false;
     } catch {
-      /* best effort */
+      return false;
     }
   };
 
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (saveSource && sourceLabel && sourceProtocol !== "gdrive") {
-      saveServer(sourceLabel, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath);
+    if (saveSource && sourceProtocol !== "gdrive") {
+      const label = sourceLabel.trim() || sourceHost;
+      saveServer(label, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath).then((ok) => {
+        setSourceSaveStatus(ok ? "success" : "error");
+        setTimeout(() => setSourceSaveStatus(undefined), 2500);
+      });
       setSaveSource(false);
       setSourceLabel("");
     }
-    if (saveDest && destLabel && destProtocol !== "gdrive") {
-      saveServer(destLabel, destProtocol, destHost, destPort, destUser, destPass, destPath);
+    if (saveDest && destProtocol !== "gdrive") {
+      const label = destLabel.trim() || destHost;
+      saveServer(label, destProtocol, destHost, destPort, destUser, destPass, destPath).then((ok) => {
+        setDestSaveStatus(ok ? "success" : "error");
+        setTimeout(() => setDestSaveStatus(undefined), 2500);
+      });
       setSaveDest(false);
       setDestLabel("");
     }
@@ -209,6 +221,7 @@ export default function TransferForm() {
               pickerMode="file"
               save={saveSource} setSave={setSaveSource}
               label={sourceLabel} setLabel={setSourceLabel}
+              saveStatus={sourceSaveStatus}
               idPrefix="src"
             />
             <ServerFieldsPanel
@@ -230,6 +243,7 @@ export default function TransferForm() {
               pickerMode="folder"
               save={saveDest} setSave={setSaveDest}
               label={destLabel} setLabel={setDestLabel}
+              saveStatus={destSaveStatus}
               idPrefix="dst"
             />
           </div>

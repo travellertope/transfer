@@ -33,6 +33,8 @@ export default function TransferPage() {
   const [srcLabel, setSrcLabel] = useState("");
   const [saveDest, setSaveDest] = useState(false);
   const [dstLabel, setDstLabel] = useState("");
+  const [srcSaveStatus, setSrcSaveStatus] = useState<"success" | "error" | undefined>();
+  const [dstSaveStatus, setDstSaveStatus] = useState<"success" | "error" | undefined>();
 
   const { state: transfer, start, cancel } = useTransferJob();
 
@@ -70,7 +72,7 @@ export default function TransferPage() {
     u: string,
     p: string,
     pth: string
-  ) => {
+  ): Promise<boolean> => {
     const res = await fetch("/api/connections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,19 +88,31 @@ export default function TransferPage() {
     }).catch(() => null);
     if (res?.ok) {
       const d = await res.json();
-      if (d.connection) setConnections((prev) => [...prev, d.connection]);
+      if (d.connection) {
+        setConnections((prev) => [...prev, d.connection]);
+        return true;
+      }
     }
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (saveSource && srcLabel && srcProtocol !== "gdrive") {
-      saveServer(srcLabel, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath);
+    if (saveSource && srcProtocol !== "gdrive") {
+      const label = srcLabel.trim() || srcHost;
+      saveServer(label, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath).then((ok) => {
+        setSrcSaveStatus(ok ? "success" : "error");
+        setTimeout(() => setSrcSaveStatus(undefined), 2500);
+      });
       setSaveSource(false); setSrcLabel("");
     }
-    if (saveDest && dstLabel && dstProtocol !== "gdrive") {
-      saveServer(dstLabel, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath);
+    if (saveDest && dstProtocol !== "gdrive") {
+      const label = dstLabel.trim() || dstHost;
+      saveServer(label, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath).then((ok) => {
+        setDstSaveStatus(ok ? "success" : "error");
+        setTimeout(() => setDstSaveStatus(undefined), 2500);
+      });
       setSaveDest(false); setDstLabel("");
     }
 
@@ -155,6 +169,7 @@ export default function TransferPage() {
             pickerMode="file"
             save={saveSource} setSave={setSaveSource}
             label={srcLabel} setLabel={setSrcLabel}
+            saveStatus={srcSaveStatus}
             idPrefix="src"
           />
           <ServerFieldsPanel
@@ -176,6 +191,7 @@ export default function TransferPage() {
             pickerMode="folder"
             save={saveDest} setSave={setSaveDest}
             label={dstLabel} setLabel={setDstLabel}
+            saveStatus={dstSaveStatus}
             idPrefix="dst"
           />
         </div>

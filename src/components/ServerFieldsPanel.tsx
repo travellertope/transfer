@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Server, HardDrive, Trash2, Eye, EyeOff } from "lucide-react";
+import { Server, HardDrive, Trash2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { GoogleDrivePicker } from "./GoogleDrivePicker";
 import type { SavedConnection } from "@/lib/wordpress";
 import type { Protocol } from "@/lib/transferClients";
@@ -72,6 +72,8 @@ export interface ServerFieldsPanelProps {
   label: string;
   setLabel: (v: string) => void;
   idPrefix: string;
+  /** Feedback for the last save-this-server attempt, shown briefly next to the checkbox. */
+  saveStatus?: "success" | "error";
 }
 
 export function ServerFieldsPanel({
@@ -79,7 +81,7 @@ export function ServerFieldsPanel({
   savedConnections, savedId, onSavedChange, onDeleteSaved,
   protocol, setProtocol, host, setHost, port, setPort, user, setUser,
   pass, setPass, path, setPath, pathLabel, pathPlaceholder, pickerMode,
-  save, setSave, label, setLabel, idPrefix,
+  save, setSave, label, setLabel, idPrefix, saveStatus,
 }: ServerFieldsPanelProps) {
   const [pathDisplayName, setPathDisplayName] = useState("");
 
@@ -282,13 +284,23 @@ export function ServerFieldsPanel({
                 className="w-4 h-4 accent-primary"
               />
               <span className="text-sm text-slate-600 dark:text-slate-400">Save this server for next time</span>
+              {saveStatus === "success" && (
+                <span className="inline-flex items-center gap-1 text-emerald-500 text-xs">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                </span>
+              )}
+              {saveStatus === "error" && (
+                <span className="inline-flex items-center gap-1 text-red-500 text-xs">
+                  <AlertCircle className="w-3.5 h-3.5" /> Failed to save
+                </span>
+              )}
             </label>
             {save && (
               <input
                 type="text"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Label (e.g. Production)"
+                placeholder={`Label (optional — defaults to "${host || "the host"}")`}
                 className={inputClass}
               />
             )}

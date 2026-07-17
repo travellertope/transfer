@@ -2,6 +2,9 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 export const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+// Needed for the userinfo call in getGoogleAccountEmail() below — without it
+// the access token only carries Drive access and userinfo returns 403.
+const GOOGLE_EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
 export const OAUTH_STATE_COOKIE = "airftp_gdrive_oauth_state";
 
 function clientCredentials() {
@@ -19,7 +22,7 @@ export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: GOOGLE_DRIVE_SCOPE,
+    scope: `${GOOGLE_DRIVE_SCOPE} ${GOOGLE_EMAIL_SCOPE}`,
     access_type: "offline",
     prompt: "consent",
     state,

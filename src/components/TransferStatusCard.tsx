@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
-import { formatBytes } from "@/lib/limits";
+import { formatBytes, formatDuration, estimateSecondsRemaining } from "@/lib/limits";
 import type { TransferUiState } from "./useTransferJob";
 
 export function TransferStatusCard({
@@ -22,6 +22,11 @@ export function TransferStatusCard({
       transfer.totalBytes && transfer.totalBytes > 0
         ? Math.min(100, Math.round(((transfer.bytesTransferred ?? 0) / transfer.totalBytes) * 100))
         : null;
+    const etaSeconds = estimateSecondsRemaining(
+      transfer.bytesTransferred ?? 0,
+      transfer.totalBytes ?? null,
+      transfer.bytesPerSecond ?? null
+    );
 
     return (
       <div className="glass-card rounded-2xl p-6 text-center mt-6">
@@ -44,6 +49,14 @@ export function TransferStatusCard({
         ) : transfer.bytesTransferred ? (
           <p className="text-xs text-slate-500 font-mono">{formatBytes(transfer.bytesTransferred)} transferred</p>
         ) : null}
+
+        {(transfer.bytesPerSecond || etaSeconds !== null) && (
+          <p className="text-xs text-slate-500 mt-1.5 font-mono">
+            {transfer.bytesPerSecond ? `${formatBytes(transfer.bytesPerSecond)}/s` : ""}
+            {transfer.bytesPerSecond && etaSeconds !== null ? " · " : ""}
+            {etaSeconds !== null ? `~${formatDuration(etaSeconds)} remaining` : ""}
+          </p>
+        )}
 
         <p className="text-xs text-slate-500 mt-4 max-w-sm mx-auto">
           This keeps running on our servers even if you close this tab or lose your connection.

@@ -1,6 +1,6 @@
 import { PassThrough } from "stream";
 import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
-import { addHistory, updateHistory, notifyTransferComplete, listWebhooks } from "./wordpress";
+import { updateHistory, notifyTransferComplete, listWebhooks } from "./wordpress";
 import { dispatchWebhooksForEvent } from "./webhookDispatch";
 import { getJob, updateJob, type TransferJob } from "./jobs";
 
@@ -103,11 +103,16 @@ async function runJob(jobId: string): Promise<void> {
           ? `${job.destination.path}/${await sourceClient.fileName(job.source.path)}`
           : job.destination.path;
 
-      updateJob(jobId, { status: "transferring", bytesTransferred: resumeOffset });
+      updateJob(jobId, { status: "transferring", bytesTransferred: resumeOffset, bytesPerSecond: null });
 
       const pipe = new PassThrough();
       let sessionBytes = 0;
       let lastProgressUpdate = 0;
+      // Recent-throughput samples for an ETA, not a lifetime average — a
+      // lifetime average would stay skewed by the slow connect/handshake
+      // phase for a while after the transfer has actually sped up.
+      const RATE_WINDOW_MS = 8000;
+      const rateSamples: { t: number; bytes: number }[] = [];
       pipe.on("data", (chunk: Buffer) => {
         sessionBytes += chunk.length;
         // The client only polls every couple of seconds — updating the job
@@ -116,7 +121,16 @@ async function runJob(jobId: string): Promise<void> {
         const now = Date.now();
         if (now - lastProgressUpdate >= 250) {
           lastProgressUpdate = now;
-          updateJob(jobId, { bytesTransferred: resumeOffset + sessionBytes });
+
+          rateSamples.push({ t: now, bytes: sessionBytes });
+          while (rateSamples.length > 1 && now - rateSamples[0].t > RATE_WINDOW_MS) {
+            rateSamples.shift();
+          }
+          const oldest = rateSamples[0];
+          const elapsedSec = (now - oldest.t) / 1000;
+          const bytesPerSecond = elapsedSec >= 0.5 ? (sessionBytes - oldest.bytes) / elapsedSec : null;
+
+          updateJob(jobId, { bytesTransferred: resumeOffset + sessionBytes, bytesPerSecond });
         }
       });
 
@@ -132,6 +146,7 @@ async function runJob(jobId: string): Promise<void> {
       updateJob(jobId, {
         status: "success",
         bytesTransferred: finalBytes,
+        bytesPerSecond: null,
         message: `Transfer complete. ${finalBytes} bytes streamed from source to destination.`,
       });
 
@@ -167,30 +182,11 @@ async function runJob(jobId: string): Promise<void> {
 }
 
 function recordHistory(job: TransferJob, status: "success" | "failed", bytes: number, error: string): void {
-  // The common path: the initial "in_progress" record already exists
-  // (written up front in the POST handler), so just flip it to its outcome
-  // in place rather than creating a second record.
-  if (job.historyId) {
-    updateHistory(job.wpToken, job.historyId, { status, bytes, error }).catch(() => {
-      /* history is best-effort; don't let a WP hiccup mask the transfer outcome */
-    });
-    return;
-  }
-
-  // Fallback for when that initial write failed (WP hiccup) — still record
-  // the outcome, just as a fresh record instead of an update.
-  addHistory(job.wpToken, {
-    source_host: job.source.host,
-    source_path: job.source.path,
-    dest_host: job.destination.host,
-    dest_path: job.destination.path,
-    bytes,
-    status,
-    error,
-    source: job.source,
-    destination: job.destination,
-  }).catch(() => {
-    /* history is best-effort; don't let a WP hiccup mask the transfer outcome */
+  // The initial "in_progress" record always exists by the time a job is
+  // created (POST /api/transfer refuses to start a transfer otherwise) —
+  // just flip it to its outcome in place.
+  updateHistory(job.wpToken, job.historyId, { status, bytes, error }).catch(() => {
+    /* history is best-effort from here; don't let a WP hiccup mask the transfer outcome */
   });
 }
 
