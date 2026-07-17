@@ -30,5 +30,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# WordPress companion plugin (delivered as a zip, not part of this app)
-wordpress-plugin/
+# built WordPress plugin zip (generated from wordpress-plugin/airftp-connect/)
+wordpress-plugin/*.zip
