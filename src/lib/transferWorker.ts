@@ -1,6 +1,6 @@
 import { PassThrough } from "stream";
 import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
-import { addHistory, notifyTransferComplete } from "./wordpress";
+import { addHistory, updateHistory, notifyTransferComplete } from "./wordpress";
 import { getJob, updateJob, type TransferJob } from "./jobs";
 
 /**
@@ -58,6 +58,7 @@ async function runJob(jobId: string): Promise<void> {
   while (job.attempts < job.maxAttempts) {
     if (job.cancelRequested) {
       updateJob(jobId, { status: "cancelled", message: "Cancelled." });
+      recordHistory(job, "failed", job.bytesTransferred, "Cancelled by user");
       return;
     }
 
@@ -90,6 +91,7 @@ async function runJob(jobId: string): Promise<void> {
         sourceClient.close();
         destClient.close();
         updateJob(jobId, { status: "cancelled", message: "Cancelled." });
+        recordHistory(job, "failed", job.bytesTransferred, "Cancelled by user");
         return;
       }
 
@@ -135,6 +137,7 @@ async function runJob(jobId: string): Promise<void> {
 
       if (job.cancelRequested) {
         updateJob(jobId, { status: "cancelled", message: "Cancelled." });
+        recordHistory(job, "failed", job.bytesTransferred, "Cancelled by user");
         return;
       }
 
@@ -153,6 +156,18 @@ async function runJob(jobId: string): Promise<void> {
 }
 
 function recordHistory(job: TransferJob, status: "success" | "failed", bytes: number, error: string): void {
+  // The common path: the initial "in_progress" record already exists
+  // (written up front in the POST handler), so just flip it to its outcome
+  // in place rather than creating a second record.
+  if (job.historyId) {
+    updateHistory(job.wpToken, job.historyId, { status, bytes, error }).catch(() => {
+      /* history is best-effort; don't let a WP hiccup mask the transfer outcome */
+    });
+    return;
+  }
+
+  // Fallback for when that initial write failed (WP hiccup) — still record
+  // the outcome, just as a fresh record instead of an update.
   addHistory(job.wpToken, {
     source_host: job.source.host,
     source_path: job.source.path,

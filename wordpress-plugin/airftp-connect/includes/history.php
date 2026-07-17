@@ -19,6 +19,12 @@ add_action('rest_api_init', function () {
             'permission_callback' => '__return_true',
         ],
     ]);
+
+    register_rest_route('airftp/v1', '/history/(?P<id>[a-zA-Z0-9\-]+)', [
+        'methods' => 'PUT',
+        'callback' => 'airftp_handle_update_history',
+        'permission_callback' => '__return_true',
+    ]);
 });
 
 function airftp_get_user_history($user_id) {
@@ -108,8 +114,8 @@ function airftp_handle_add_history(WP_REST_Request $request) {
     }
 
     $status = (string) $request->get_param('status');
-    if (!in_array($status, ['success', 'failed'], true)) {
-        return new WP_Error('airftp_invalid_input', 'status must be "success" or "failed".', ['status' => 400]);
+    if (!in_array($status, ['in_progress', 'success', 'failed'], true)) {
+        return new WP_Error('airftp_invalid_input', 'status must be "in_progress", "success", or "failed".', ['status' => 400]);
     }
 
     $entry = [
@@ -136,4 +142,58 @@ function airftp_handle_add_history(WP_REST_Request $request) {
     update_user_meta($user->ID, AIRFTP_HISTORY_META_KEY, $history);
 
     return ['transfer' => airftp_history_payload($entry)];
+}
+
+/**
+ * Updates an existing history record in place — used to flip a record
+ * created as "in_progress" (written immediately when a transfer starts,
+ * before anything has happened) to its final "success"/"failed" outcome.
+ * Writing the record up front means an interrupted transfer (server
+ * restart, crash) still leaves a visible trace instead of vanishing with
+ * nothing ever recorded.
+ */
+function airftp_handle_update_history(WP_REST_Request $request) {
+    $user = airftp_authenticate_request($request);
+    if (is_wp_error($user)) {
+        return $user;
+    }
+
+    $id = (string) $request->get_param('id');
+    $history = airftp_get_user_history($user->ID);
+
+    $index = null;
+    foreach ($history as $i => $h) {
+        if ($h['id'] === $id) {
+            $index = $i;
+            break;
+        }
+    }
+    if ($index === null) {
+        return new WP_Error('airftp_not_found', 'History record not found.', ['status' => 404]);
+    }
+
+    $existing = $history[$index];
+
+    $status = $request->get_param('status');
+    if ($status !== null) {
+        if (!in_array($status, ['in_progress', 'success', 'failed'], true)) {
+            return new WP_Error('airftp_invalid_input', 'status must be "in_progress", "success", or "failed".', ['status' => 400]);
+        }
+        $existing['status'] = $status;
+    }
+
+    $bytes = $request->get_param('bytes');
+    if ($bytes !== null) {
+        $existing['bytes'] = (int) $bytes;
+    }
+
+    $error = $request->get_param('error');
+    if ($error !== null) {
+        $existing['error'] = sanitize_text_field((string) $error);
+    }
+
+    $history[$index] = $existing;
+    update_user_meta($user->ID, AIRFTP_HISTORY_META_KEY, $history);
+
+    return ['transfer' => airftp_history_payload($existing)];
 }

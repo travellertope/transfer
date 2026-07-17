@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
 import { limitForUser, formatBytes } from "@/lib/limits";
 import { createTransferClient, type Protocol, type ServerConfig } from "@/lib/transferClients";
-import { createJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
+import { createJob, updateJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
+import { addHistory } from "@/lib/wordpress";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
   const protocols: Protocol[] = ["ftp", "sftp", "gdrive"];
@@ -102,6 +103,29 @@ export async function POST(req: NextRequest) {
     destination,
     totalBytes: fileSize,
   });
+
+  // Written up front (before the transfer does anything) so an interrupted
+  // job — server restart, crash — leaves a visible trace in History instead
+  // of vanishing with nothing ever recorded. Best-effort: if WP is briefly
+  // unreachable, the transfer still starts, and the worker just creates the
+  // record fresh on completion instead of updating this one.
+  try {
+    const record = await addHistory(token, {
+      source_host: source.host,
+      source_path: source.path,
+      dest_host: destination.host,
+      dest_path: destination.path,
+      bytes: 0,
+      status: "in_progress",
+      error: "",
+      source,
+      destination,
+    });
+    updateJob(job.id, { historyId: record.id });
+  } catch {
+    /* fall back to create-on-completion in the worker */
+  }
+
   enqueueJob(job.id);
 
   return NextResponse.json({ success: true, job: jobSnapshot(job) }, { status: 202 });
