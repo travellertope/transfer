@@ -34,6 +34,30 @@ function airftp_issue_jwt($user_id) {
 }
 
 /**
+ * Pulls the session token off a request. Prefers the custom X-AirFTP-Token
+ * header over a standard "Authorization: Bearer ..." header — some hosts run
+ * a security/JWT plugin that inspects any Authorization: Bearer header on
+ * every REST request and rejects ours before it reaches this plugin's own
+ * verification, with an unrelated "Signature verification failed" error.
+ * The custom header isn't recognized by that kind of generic interception,
+ * so it reaches us untouched. Bearer is kept as a fallback for callers that
+ * haven't switched over yet.
+ */
+function airftp_extract_token(WP_REST_Request $request) {
+    $custom = (string) $request->get_header('x-airftp-token');
+    if ($custom) {
+        return $custom;
+    }
+
+    $auth_header = $request->get_header('authorization');
+    if ($auth_header && stripos($auth_header, 'Bearer ') === 0) {
+        return substr($auth_header, 7);
+    }
+
+    return '';
+}
+
+/**
  * Verifies a JWT issued by airftp_issue_jwt(). Returns the WP_User on
  * success, or a WP_Error on failure (bad signature, expired, unknown user).
  */

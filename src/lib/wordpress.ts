@@ -100,8 +100,12 @@ export async function validateToken(token: string): Promise<WpUser | null> {
   }
 }
 
+// Sent as a custom header rather than "Authorization: Bearer ..." — some WP
+// hosts run a security/JWT plugin that inspects any standard Authorization
+// header on every REST request and rejects ours before our own plugin ever
+// sees it. See airftp_extract_token() in the WP plugin's jwt.php.
 function authHeaders(token: string) {
-  return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  return { "Content-Type": "application/json", "X-AirFTP-Token": token };
 }
 
 export async function listConnections(token: string): Promise<SavedConnection[]> {
