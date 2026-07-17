@@ -43,7 +43,7 @@ function basename(path: string): string {
 /** True for errors that look transient (network blips) and are worth retrying, as opposed to permanent ones (bad creds, missing file). */
 export function isRetryableTransferError(err: unknown): boolean {
   const message = err instanceof Error ? err.message : String(err);
-  if (/rejected the username\/password|refused the connection|resolve the hostname|exceeds your|invalid|not found|no such file|permission denied/i.test(message)) {
+  if (/rejected the username\/password|refused the connection|resolve the hostname|exceeds your|invalid|not found|no such file|permission denied|can't resume a partial transfer/i.test(message)) {
     return false;
   }
   return true;
@@ -214,6 +214,30 @@ class SftpTransferClient implements TransferClient {
  * rest the same way an FTP password is); `config.host`/`config.user` just
  * hold the connected account's email for display.
  */
+// Google Docs/Sheets/Slides/Drawings live as structured documents, not a
+// binary blob — Drive's regular ?alt=media download 403s on them ("Only
+// files with binary content can be downloaded. Use Export with Docs Editors
+// files."). They have to go through the separate /export endpoint instead,
+// converted to one of a fixed set of formats Google offers per type.
+const GOOGLE_EXPORT_TARGETS: Record<string, { mimeType: string; extension: string }> = {
+  "application/vnd.google-apps.document": {
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    extension: ".docx",
+  },
+  "application/vnd.google-apps.spreadsheet": {
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    extension: ".xlsx",
+  },
+  "application/vnd.google-apps.presentation": {
+    mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    extension: ".pptx",
+  },
+  "application/vnd.google-apps.drawing": {
+    mimeType: "image/png",
+    extension: ".png",
+  },
+};
+
 class GoogleDriveTransferClient implements TransferClient {
   private refreshToken = "";
   private accessToken = "";
@@ -238,7 +262,7 @@ class GoogleDriveTransferClient implements TransferClient {
     this.accessTokenExpiry = Date.now() + expiresIn * 1000;
   }
 
-  async size(fileId: string) {
+  private async getMetadata(fileId: string): Promise<{ name: string; mimeType: string; size?: number }> {
     await this.ensureAccessToken();
     const res = await fetch(
       `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=size,mimeType,name`,
@@ -246,39 +270,64 @@ class GoogleDriveTransferClient implements TransferClient {
     );
     if (!res.ok) throw new Error(await driveErrorMessage(res));
     const data = await res.json();
-    if (data.mimeType === "application/vnd.google-apps.folder") {
+    return {
+      name: (data.name as string) || "file",
+      mimeType: data.mimeType as string,
+      size: data.size !== undefined ? Number(data.size) : undefined,
+    };
+  }
+
+  async size(fileId: string) {
+    const meta = await this.getMetadata(fileId);
+    if (meta.mimeType === "application/vnd.google-apps.folder") {
       throw new Error("That's a Google Drive folder, not a file — pick a file to transfer.");
     }
-    if (data.size === undefined) {
+    if (GOOGLE_EXPORT_TARGETS[meta.mimeType]) {
+      // Google reports a storage-quota "size" for Docs/Sheets/Slides too, but
+      // it doesn't match the exported file's actual byte count, so it's not
+      // usable for a progress bar — report unknown instead of a wrong number.
+      return 0;
+    }
+    if (meta.size === undefined) {
       throw new Error(
-        `"${data.name}" doesn't have a transferable file size — Google Docs/Sheets/Slides files can't be transferred directly. Export it to a file first.`
+        `"${meta.name}" doesn't have a transferable file size and isn't a Google Docs/Sheets/Slides/Drawings file AirFTP can export.`
       );
     }
-    return Number(data.size);
+    return meta.size;
   }
 
   async fileName(fileId: string) {
-    await this.ensureAccessToken();
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=name`,
-      { headers: { Authorization: `Bearer ${this.accessToken}` } }
-    );
-    if (!res.ok) throw new Error(await driveErrorMessage(res));
-    const data = await res.json();
-    return (data.name as string) || "file";
+    const meta = await this.getMetadata(fileId);
+    const target = GOOGLE_EXPORT_TARGETS[meta.mimeType];
+    if (target && !meta.name.toLowerCase().endsWith(target.extension)) {
+      return `${meta.name}${target.extension}`;
+    }
+    return meta.name;
   }
 
   async downloadTo(destination: Writable, fileId: string, startAt = 0) {
-    await this.ensureAccessToken();
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`,
-      {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          ...(startAt > 0 ? { Range: `bytes=${startAt}-` } : {}),
-        },
-      }
-    );
+    const meta = await this.getMetadata(fileId);
+    const target = GOOGLE_EXPORT_TARGETS[meta.mimeType];
+
+    if (target && startAt > 0) {
+      // The /export endpoint always renders the document from scratch — it
+      // has no notion of a byte offset to resume from — so a retry can't
+      // safely append to whatever partial upload the destination already has.
+      throw new Error(
+        "This Google Docs/Sheets/Slides/Drawings file can't resume a partial transfer. Please start the transfer again."
+      );
+    }
+
+    const url = target
+      ? `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(target.mimeType)}`
+      : `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`;
+
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        ...(!target && startAt > 0 ? { Range: `bytes=${startAt}-` } : {}),
+      },
+    });
     if (!res.ok && res.status !== 206) {
       throw new Error(await driveErrorMessage(res));
     }
