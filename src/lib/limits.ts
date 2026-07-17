@@ -1,5 +1,6 @@
 export const FREE_LIMIT_BYTES = 800 * 1024 * 1024;
 export const PRO_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
+export const FREE_MONTHLY_TRANSFER_LIMIT = 3;
 
 export function limitForUser(isPro: boolean) {
   return isPro ? PRO_LIMIT_BYTES : FREE_LIMIT_BYTES;

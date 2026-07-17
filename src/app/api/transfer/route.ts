@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
-import { limitForUser, formatBytes } from "@/lib/limits";
+import { limitForUser, formatBytes, FREE_MONTHLY_TRANSFER_LIMIT } from "@/lib/limits";
 import { createTransferClient, type Protocol, type ServerConfig } from "@/lib/transferClients";
 import { createJob, updateJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
-import { addHistory } from "@/lib/wordpress";
+import { addHistory, listHistory } from "@/lib/wordpress";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
   const protocols: Protocol[] = ["ftp", "sftp", "gdrive"];
@@ -60,6 +60,28 @@ export async function POST(req: NextRequest) {
       { success: false, error: "Google Drive transfers are a Pro feature. Upgrade to use them." },
       { status: 403 }
     );
+  }
+
+  if (!user.isPro) {
+    try {
+      const history = await listHistory(token);
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const usedThisMonth = history.filter((t) => new Date(t.created_at) >= monthStart).length;
+      if (usedThisMonth >= FREE_MONTHLY_TRANSFER_LIMIT) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "LIMIT_EXCEEDED",
+            error: `You've used all ${FREE_MONTHLY_TRANSFER_LIMIT} free transfers this month. Upgrade to Pro for unlimited transfers.`,
+          },
+          { status: 403 }
+        );
+      }
+    } catch {
+      /* if WP is briefly unreachable, don't block a legitimate transfer over an undercount */
+    }
   }
 
   // Quick probe up front: confirms the source is reachable and checks the

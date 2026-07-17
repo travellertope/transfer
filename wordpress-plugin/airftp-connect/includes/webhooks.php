@@ -47,6 +47,9 @@ function airftp_webhook_payload($hook) {
         'events' => array_values($hook['events']),
         'active' => (bool) $hook['active'],
         'created_at' => $hook['created_at'],
+        // Shown persistently (unlike API keys) so the user can configure
+        // their receiver to verify the X-AirFTP-Signature header at any time.
+        'secret' => $hook['secret'] ?? '',
     ];
 }
 
@@ -76,6 +79,18 @@ function airftp_handle_list_webhooks(WP_REST_Request $request) {
 
     $hooks = airftp_get_user_webhooks($user->ID);
 
+    // Backfill secrets for webhooks created before signing was added.
+    $changed = false;
+    foreach ($hooks as $i => $h) {
+        if (empty($h['secret'])) {
+            $hooks[$i]['secret'] = 'whsec_' . wp_generate_password(40, false, false);
+            $changed = true;
+        }
+    }
+    if ($changed) {
+        update_user_meta($user->ID, AIRFTP_WEBHOOKS_META_KEY, $hooks);
+    }
+
     return ['webhooks' => array_map('airftp_webhook_payload', $hooks)];
 }
 
@@ -102,6 +117,7 @@ function airftp_handle_create_webhook(WP_REST_Request $request) {
         'events' => $events,
         'active' => $active,
         'created_at' => gmdate('c'),
+        'secret' => 'whsec_' . wp_generate_password(40, false, false),
     ];
 
     $hooks = airftp_get_user_webhooks($user->ID);
@@ -148,6 +164,7 @@ function airftp_handle_update_webhook(WP_REST_Request $request) {
         'events' => $events,
         'active' => $active,
         'created_at' => $hooks[$index]['created_at'],
+        'secret' => $hooks[$index]['secret'] ?? ('whsec_' . wp_generate_password(40, false, false)),
     ];
 
     update_user_meta($user->ID, AIRFTP_WEBHOOKS_META_KEY, $hooks);
