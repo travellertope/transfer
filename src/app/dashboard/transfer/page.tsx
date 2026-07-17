@@ -67,7 +67,9 @@ interface ServerPanelProps {
   savedId: string;
   onSavedChange: (id: string) => void;
   onDeleteSaved: (id: string) => void;
+  protocol: "ftp" | "sftp"; setProtocol: (v: "ftp" | "sftp") => void;
   host: string; setHost: (v: string) => void;
+  port: string; setPort: (v: string) => void;
   user: string; setUser: (v: string) => void;
   pass: string; setPass: (v: string) => void;
   path: string; setPath: (v: string) => void;
@@ -79,7 +81,7 @@ interface ServerPanelProps {
 
 function ServerPanel({
   title, subtitle, iconColor, savedConnections, savedId,
-  onSavedChange, onDeleteSaved, host, setHost, user, setUser,
+  onSavedChange, onDeleteSaved, protocol, setProtocol, host, setHost, port, setPort, user, setUser,
   pass, setPass, path, setPath, pathPlaceholder,
   save, setSave, label, setLabel, idPrefix,
 }: ServerPanelProps) {
@@ -123,8 +125,44 @@ function ServerPanel({
         )}
 
         <div>
-          <label htmlFor={`${idPrefix}-host`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">FTP Host</label>
-          <input id={`${idPrefix}-host`} type="text" value={host} onChange={(e) => setHost(e.target.value)} placeholder="ftp.example.com" className={inputClass} required />
+          <label htmlFor={`${idPrefix}-protocol`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Protocol</label>
+          <select
+            id={`${idPrefix}-protocol`}
+            value={protocol}
+            onChange={(e) => setProtocol(e.target.value as "ftp" | "sftp")}
+            className={inputClass}
+          >
+            <option value="ftp">FTP</option>
+            <option value="sftp">SFTP</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <label htmlFor={`${idPrefix}-host`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+              {protocol === "sftp" ? "SFTP Host" : "FTP Host"}
+            </label>
+            <input
+              id={`${idPrefix}-host`}
+              type="text"
+              value={host}
+              onChange={(e) => setHost(e.target.value)}
+              placeholder={protocol === "sftp" ? "sftp.example.com" : "ftp.example.com"}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor={`${idPrefix}-port`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Port</label>
+            <input
+              id={`${idPrefix}-port`}
+              type="text"
+              inputMode="numeric"
+              value={port}
+              onChange={(e) => setPort(e.target.value)}
+              placeholder={protocol === "sftp" ? "22" : "21"}
+              className={inputClass}
+            />
+          </div>
         </div>
         <div>
           <label htmlFor={`${idPrefix}-user`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">Username</label>
@@ -156,11 +194,15 @@ function ServerPanel({
 export default function TransferPage() {
   const { user } = useAuth();
 
+  const [srcProtocol, setSrcProtocol] = useState<"ftp" | "sftp">("ftp");
   const [srcHost, setSrcHost] = useState("");
+  const [srcPort, setSrcPort] = useState("");
   const [srcUser, setSrcUser] = useState("");
   const [srcPass, setSrcPass] = useState("");
   const [srcPath, setSrcPath] = useState("");
+  const [dstProtocol, setDstProtocol] = useState<"ftp" | "sftp">("ftp");
   const [dstHost, setDstHost] = useState("");
+  const [dstPort, setDstPort] = useState("");
   const [dstUser, setDstUser] = useState("");
   const [dstPass, setDstPass] = useState("");
   const [dstPath, setDstPath] = useState("");
@@ -186,9 +228,11 @@ export default function TransferPage() {
     const conn = connections.find((c) => c.id === id);
     if (!conn) return;
     if (role === "source") {
-      setSrcHost(conn.host); setSrcUser(conn.user); setSrcPass(conn.password); setSrcPath(conn.path);
+      setSrcProtocol(conn.protocol ?? "ftp"); setSrcHost(conn.host); setSrcPort(conn.port ? String(conn.port) : "");
+      setSrcUser(conn.user); setSrcPass(conn.password); setSrcPath(conn.path);
     } else {
-      setDstHost(conn.host); setDstUser(conn.user); setDstPass(conn.password); setDstPath(conn.path);
+      setDstProtocol(conn.protocol ?? "ftp"); setDstHost(conn.host); setDstPort(conn.port ? String(conn.port) : "");
+      setDstUser(conn.user); setDstPass(conn.password); setDstPath(conn.path);
     }
   };
 
@@ -198,11 +242,29 @@ export default function TransferPage() {
     await fetch(`/api/connections/${id}`, { method: "DELETE" }).catch(() => {});
   };
 
-  const saveServer = async (role: "source" | "destination", lbl: string, host: string, u: string, p: string, pth: string) => {
+  const saveServer = async (
+    role: "source" | "destination",
+    lbl: string,
+    protocol: "ftp" | "sftp",
+    host: string,
+    prt: string,
+    u: string,
+    p: string,
+    pth: string
+  ) => {
     const res = await fetch("/api/connections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: lbl, role, host, user: u, password: p, path: pth }),
+      body: JSON.stringify({
+        label: lbl,
+        role,
+        protocol,
+        host,
+        port: prt ? Number(prt) : undefined,
+        user: u,
+        password: p,
+        path: pth,
+      }),
     }).catch(() => null);
     if (res?.ok) {
       const d = await res.json();
@@ -231,11 +293,11 @@ export default function TransferPage() {
     setTransfer({ status: "transferring", message: "Connecting to servers…" });
 
     if (saveSource && srcLabel) {
-      saveServer("source", srcLabel, srcHost, srcUser, srcPass, srcPath);
+      saveServer("source", srcLabel, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath);
       setSaveSource(false); setSrcLabel("");
     }
     if (saveDest && dstLabel) {
-      saveServer("destination", dstLabel, dstHost, dstUser, dstPass, dstPath);
+      saveServer("destination", dstLabel, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath);
       setSaveDest(false); setDstLabel("");
     }
 
@@ -244,8 +306,22 @@ export default function TransferPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          source: { host: srcHost, user: srcUser, password: srcPass, path: srcPath },
-          destination: { host: dstHost, user: dstUser, password: dstPass, path: dstPath },
+          source: {
+            protocol: srcProtocol,
+            host: srcHost,
+            port: srcPort ? Number(srcPort) : undefined,
+            user: srcUser,
+            password: srcPass,
+            path: srcPath,
+          },
+          destination: {
+            protocol: dstProtocol,
+            host: dstHost,
+            port: dstPort ? Number(dstPort) : undefined,
+            user: dstUser,
+            password: dstPass,
+            path: dstPath,
+          },
         }),
       });
       const data = await res.json();
@@ -286,7 +362,9 @@ export default function TransferPage() {
             savedId={srcSavedId}
             onSavedChange={(id) => { setSrcSavedId(id); if (id) applySaved("source", id); }}
             onDeleteSaved={(id) => deleteSaved("source", id)}
+            protocol={srcProtocol} setProtocol={setSrcProtocol}
             host={srcHost} setHost={setSrcHost}
+            port={srcPort} setPort={setSrcPort}
             user={srcUser} setUser={setSrcUser}
             pass={srcPass} setPass={setSrcPass}
             path={srcPath} setPath={setSrcPath}
@@ -302,7 +380,9 @@ export default function TransferPage() {
             savedId={dstSavedId}
             onSavedChange={(id) => { setDstSavedId(id); if (id) applySaved("destination", id); }}
             onDeleteSaved={(id) => deleteSaved("destination", id)}
+            protocol={dstProtocol} setProtocol={setDstProtocol}
             host={dstHost} setHost={setDstHost}
+            port={dstPort} setPort={setDstPort}
             user={dstUser} setUser={setDstUser}
             pass={dstPass} setPass={setDstPass}
             path={dstPath} setPath={setDstPath}

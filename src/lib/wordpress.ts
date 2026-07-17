@@ -14,7 +14,9 @@ export interface SavedConnection {
   id: string;
   label: string;
   role: "source" | "destination";
+  protocol: "ftp" | "sftp";
   host: string;
+  port?: number;
   user: string;
   password: string;
   path: string;
