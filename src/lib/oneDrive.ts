@@ -5,7 +5,7 @@ const MS_GRAPH_ME_URL = "https://graph.microsoft.com/v1.0/me";
 // Google, Microsoft won't include one just because the flow used response
 // type "code".
 export const ONEDRIVE_SCOPE = "Files.ReadWrite offline_access User.Read";
-export const ONEDRIVE_OAUTH_STATE_COOKIE = "airftp_onedrive_oauth_state";
+export const ONEDRIVE_OAUTH_STATE_COOKIE = "bluusync_onedrive_oauth_state";
 
 function clientCredentials() {
   const clientId = process.env.MICROSOFT_CLIENT_ID;

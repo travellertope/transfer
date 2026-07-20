@@ -180,7 +180,7 @@ export default function TransferForm() {
               Log in to start a transfer
             </p>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-              AirFTP requires a free account to run transfers.
+              BluuSync requires a free account to run transfers.
             </p>
             <div className="flex justify-center gap-3">
               <Link

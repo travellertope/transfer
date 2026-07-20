@@ -1,35 +1,35 @@
 <?php
 /**
- * Plugin Name: AirFTP Connect
- * Description: REST backend (auth, saved servers, transfer history, API keys, webhooks, Pro-member flag) for the AirFTP app.
+ * Plugin Name: BluuSync Connect
+ * Description: REST backend (auth, saved servers, transfer history, API keys, webhooks, Pro-member flag) for the BluuSync app.
  * Version: 1.4.0
- * Author: AirFTP
+ * Author: BluuSync
  */
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AIRFTP_JWT_OPTION', 'airftp_jwt_secret');
-define('AIRFTP_ENC_OPTION', 'airftp_enc_secret');
-define('AIRFTP_ADMIN_SECRET_OPTION', 'airftp_admin_secret');
-define('AIRFTP_PRO_META_KEY', 'airftp_pro');
-define('AIRFTP_CONNECTIONS_META_KEY', 'airftp_connections');
-define('AIRFTP_HISTORY_META_KEY', 'airftp_history');
-define('AIRFTP_API_KEYS_META_KEY', 'airftp_api_keys');
-define('AIRFTP_WEBHOOKS_META_KEY', 'airftp_webhooks');
-define('AIRFTP_JWT_TTL', 30 * DAY_IN_SECONDS);
+define('BLUUSYNC_JWT_OPTION', 'bluusync_jwt_secret');
+define('BLUUSYNC_ENC_OPTION', 'bluusync_enc_secret');
+define('BLUUSYNC_ADMIN_SECRET_OPTION', 'bluusync_admin_secret');
+define('BLUUSYNC_PRO_META_KEY', 'bluusync_pro');
+define('BLUUSYNC_CONNECTIONS_META_KEY', 'bluusync_connections');
+define('BLUUSYNC_HISTORY_META_KEY', 'bluusync_history');
+define('BLUUSYNC_API_KEYS_META_KEY', 'bluusync_api_keys');
+define('BLUUSYNC_WEBHOOKS_META_KEY', 'bluusync_webhooks');
+define('BLUUSYNC_JWT_TTL', 30 * DAY_IN_SECONDS);
 
-register_activation_hook(__FILE__, 'airftp_connect_activate');
-function airftp_connect_activate() {
-    if (!get_option(AIRFTP_JWT_OPTION)) {
-        update_option(AIRFTP_JWT_OPTION, wp_generate_password(64, true, true));
+register_activation_hook(__FILE__, 'bluusync_connect_activate');
+function bluusync_connect_activate() {
+    if (!get_option(BLUUSYNC_JWT_OPTION)) {
+        update_option(BLUUSYNC_JWT_OPTION, wp_generate_password(64, true, true));
     }
-    if (!get_option(AIRFTP_ENC_OPTION)) {
-        update_option(AIRFTP_ENC_OPTION, wp_generate_password(64, true, true));
+    if (!get_option(BLUUSYNC_ENC_OPTION)) {
+        update_option(BLUUSYNC_ENC_OPTION, wp_generate_password(64, true, true));
     }
-    if (!get_option(AIRFTP_ADMIN_SECRET_OPTION)) {
-        update_option(AIRFTP_ADMIN_SECRET_OPTION, wp_generate_password(64, true, true));
+    if (!get_option(BLUUSYNC_ADMIN_SECRET_OPTION)) {
+        update_option(BLUUSYNC_ADMIN_SECRET_OPTION, wp_generate_password(64, true, true));
     }
 }
 
@@ -47,8 +47,8 @@ require_once plugin_dir_path(__FILE__) . 'includes/admin-settings.php';
 require_once plugin_dir_path(__FILE__) . 'includes/billing.php';
 
 /**
- * Every airftp/v1 route authenticates itself manually (see
- * airftp_authenticate_request / airftp_verify_jwt) via its own Bearer token
+ * Every bluusync/v1 route authenticates itself manually (see
+ * bluusync_authenticate_request / bluusync_verify_jwt) via its own Bearer token
  * format, and registers with permission_callback => '__return_true' for that
  * reason. But WordPress core runs the 'rest_authentication_errors' filter
  * before any route callback fires, and other active plugins (e.g. generic
@@ -61,7 +61,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/billing.php';
  * block them.
  */
 add_filter('rest_authentication_errors', function ($result) {
-    if (is_wp_error($result) && strpos($_SERVER['REQUEST_URI'] ?? '', '/airftp/v1/') !== false) {
+    if (is_wp_error($result) && strpos($_SERVER['REQUEST_URI'] ?? '', '/bluusync/v1/') !== false) {
         return null;
     }
     return $result;

@@ -5,60 +5,60 @@ if (!defined('ABSPATH')) {
 }
 
 add_action('rest_api_init', function () {
-    register_rest_route('airftp/v1', '/connections', [
+    register_rest_route('bluusync/v1', '/connections', [
         [
             'methods' => 'GET',
-            'callback' => 'airftp_handle_list_connections',
+            'callback' => 'bluusync_handle_list_connections',
             'permission_callback' => '__return_true',
         ],
         [
             'methods' => 'POST',
-            'callback' => 'airftp_handle_save_connection',
+            'callback' => 'bluusync_handle_save_connection',
             'permission_callback' => '__return_true',
         ],
     ]);
 
-    register_rest_route('airftp/v1', '/connections/(?P<id>[a-zA-Z0-9\-]+)', [
+    register_rest_route('bluusync/v1', '/connections/(?P<id>[a-zA-Z0-9\-]+)', [
         [
             'methods' => 'PUT',
-            'callback' => 'airftp_handle_update_connection',
+            'callback' => 'bluusync_handle_update_connection',
             'permission_callback' => '__return_true',
         ],
         [
             'methods' => 'DELETE',
-            'callback' => 'airftp_handle_delete_connection',
+            'callback' => 'bluusync_handle_delete_connection',
             'permission_callback' => '__return_true',
         ],
     ]);
 });
 
-function airftp_authenticate_request(WP_REST_Request $request) {
-    $token = airftp_extract_token($request);
+function bluusync_authenticate_request(WP_REST_Request $request) {
+    $token = bluusync_extract_token($request);
 
     if (!$token) {
-        return new WP_Error('airftp_missing_token', 'No token provided.', ['status' => 401]);
+        return new WP_Error('bluusync_missing_token', 'No token provided.', ['status' => 401]);
     }
 
-    return airftp_verify_jwt($token);
+    return bluusync_verify_jwt($token);
 }
 
-function airftp_get_user_connections($user_id) {
-    $connections = get_user_meta($user_id, AIRFTP_CONNECTIONS_META_KEY, true);
+function bluusync_get_user_connections($user_id) {
+    $connections = get_user_meta($user_id, BLUUSYNC_CONNECTIONS_META_KEY, true);
     return is_array($connections) ? $connections : [];
 }
 
-function airftp_connection_payload($conn) {
+function bluusync_connection_payload($conn) {
     return [
         'id' => $conn['id'],
         'label' => $conn['label'],
-        'protocol' => airftp_sanitize_protocol($conn['protocol'] ?? ''),
+        'protocol' => bluusync_sanitize_protocol($conn['protocol'] ?? ''),
         'host' => $conn['host'],
         'port' => (!empty($conn['port'])) ? (int) $conn['port'] : null,
         'user' => $conn['user'],
         // For gdrive connections this "password" is really an OAuth refresh
         // token, but it's encrypted at rest the same way, so decryption is
         // identical either way.
-        'password' => airftp_decrypt($conn['password']),
+        'password' => bluusync_decrypt($conn['password']),
         'path' => $conn['path'],
     ];
 }
@@ -66,7 +66,7 @@ function airftp_connection_payload($conn) {
 /**
  * Validates a protocol param, defaulting to 'ftp' when absent/unrecognized.
  */
-function airftp_sanitize_protocol($protocol) {
+function bluusync_sanitize_protocol($protocol) {
     if (in_array($protocol, ['sftp', 'gdrive', 'youtube', 'onedrive'], true)) {
         return $protocol;
     }
@@ -76,47 +76,47 @@ function airftp_sanitize_protocol($protocol) {
 /**
  * Validates a port param. Returns [int|null $port, WP_Error|null $error].
  */
-function airftp_sanitize_port($port_param) {
+function bluusync_sanitize_port($port_param) {
     if ($port_param === null || $port_param === '') {
         return [null, null];
     }
 
     $port = (int) $port_param;
     if ($port < 1 || $port > 65535) {
-        return [null, new WP_Error('airftp_invalid_input', 'Port must be between 1 and 65535.', ['status' => 400])];
+        return [null, new WP_Error('bluusync_invalid_input', 'Port must be between 1 and 65535.', ['status' => 400])];
     }
 
     return [$port, null];
 }
 
-function airftp_handle_list_connections(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_list_connections(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
-    $connections = airftp_get_user_connections($user->ID);
+    $connections = bluusync_get_user_connections($user->ID);
 
-    return ['connections' => array_map('airftp_connection_payload', $connections)];
+    return ['connections' => array_map('bluusync_connection_payload', $connections)];
 }
 
-function airftp_handle_save_connection(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_save_connection(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $label = sanitize_text_field((string) $request->get_param('label'));
-    $protocol = airftp_sanitize_protocol((string) $request->get_param('protocol'));
+    $protocol = bluusync_sanitize_protocol((string) $request->get_param('protocol'));
     $host = sanitize_text_field((string) $request->get_param('host'));
-    [$port, $port_error] = airftp_sanitize_port($request->get_param('port'));
+    [$port, $port_error] = bluusync_sanitize_port($request->get_param('port'));
     $ftp_user = sanitize_text_field((string) $request->get_param('user'));
     $password = (string) $request->get_param('password');
     $path = sanitize_text_field((string) $request->get_param('path'));
 
     if (!$label || !$host || !$ftp_user || !$password || !$path) {
         return new WP_Error(
-            'airftp_invalid_input',
+            'bluusync_invalid_input',
             'label, host, user, password, and path are all required.',
             ['status' => 400]
         );
@@ -125,7 +125,7 @@ function airftp_handle_save_connection(WP_REST_Request $request) {
         return $port_error;
     }
 
-    $connections = airftp_get_user_connections($user->ID);
+    $connections = bluusync_get_user_connections($user->ID);
 
     $entry = [
         'id' => wp_generate_uuid4(),
@@ -134,24 +134,24 @@ function airftp_handle_save_connection(WP_REST_Request $request) {
         'host' => $host,
         'port' => $port,
         'user' => $ftp_user,
-        'password' => airftp_encrypt($password),
+        'password' => bluusync_encrypt($password),
         'path' => $path,
     ];
 
     $connections[] = $entry;
-    update_user_meta($user->ID, AIRFTP_CONNECTIONS_META_KEY, $connections);
+    update_user_meta($user->ID, BLUUSYNC_CONNECTIONS_META_KEY, $connections);
 
-    return ['connection' => airftp_connection_payload($entry)];
+    return ['connection' => bluusync_connection_payload($entry)];
 }
 
-function airftp_handle_update_connection(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_update_connection(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $id = (string) $request->get_param('id');
-    $connections = airftp_get_user_connections($user->ID);
+    $connections = bluusync_get_user_connections($user->ID);
 
     $index = null;
     foreach ($connections as $i => $c) {
@@ -161,7 +161,7 @@ function airftp_handle_update_connection(WP_REST_Request $request) {
         }
     }
     if ($index === null) {
-        return new WP_Error('airftp_not_found', 'Connection not found.', ['status' => 404]);
+        return new WP_Error('bluusync_not_found', 'Connection not found.', ['status' => 404]);
     }
 
     $existing = $connections[$index];
@@ -178,13 +178,13 @@ function airftp_handle_update_connection(WP_REST_Request $request) {
         $existing['label'] = sanitize_text_field((string) $label);
     }
     if ($protocol !== null) {
-        $existing['protocol'] = airftp_sanitize_protocol((string) $protocol);
+        $existing['protocol'] = bluusync_sanitize_protocol((string) $protocol);
     }
     if ($host !== null && $host !== '') {
         $existing['host'] = sanitize_text_field((string) $host);
     }
     if ($port_param !== null) {
-        [$port, $port_error] = airftp_sanitize_port($port_param);
+        [$port, $port_error] = bluusync_sanitize_port($port_param);
         if ($port_error) {
             return $port_error;
         }
@@ -194,36 +194,36 @@ function airftp_handle_update_connection(WP_REST_Request $request) {
         $existing['user'] = sanitize_text_field((string) $ftp_user);
     }
     if ($password !== null && $password !== '') {
-        $existing['password'] = airftp_encrypt((string) $password);
+        $existing['password'] = bluusync_encrypt((string) $password);
     }
     if ($path !== null && $path !== '') {
         $existing['path'] = sanitize_text_field((string) $path);
     }
 
     $connections[$index] = $existing;
-    update_user_meta($user->ID, AIRFTP_CONNECTIONS_META_KEY, $connections);
+    update_user_meta($user->ID, BLUUSYNC_CONNECTIONS_META_KEY, $connections);
 
-    return ['connection' => airftp_connection_payload($existing)];
+    return ['connection' => bluusync_connection_payload($existing)];
 }
 
-function airftp_handle_delete_connection(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_delete_connection(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $id = (string) $request->get_param('id');
-    $connections = airftp_get_user_connections($user->ID);
+    $connections = bluusync_get_user_connections($user->ID);
 
     $filtered = array_values(array_filter($connections, function ($c) use ($id) {
         return $c['id'] !== $id;
     }));
 
     if (count($filtered) === count($connections)) {
-        return new WP_Error('airftp_not_found', 'Connection not found.', ['status' => 404]);
+        return new WP_Error('bluusync_not_found', 'Connection not found.', ['status' => 404]);
     }
 
-    update_user_meta($user->ID, AIRFTP_CONNECTIONS_META_KEY, $filtered);
+    update_user_meta($user->ID, BLUUSYNC_CONNECTIONS_META_KEY, $filtered);
 
     return ['success' => true];
 }

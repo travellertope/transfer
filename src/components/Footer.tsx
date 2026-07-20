@@ -11,7 +11,7 @@ export default function Footer() {
             <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
               <ArrowRightLeft className="w-4 h-4 text-primary-light" />
             </div>
-            <span className="text-lg font-bold text-slate-900 dark:text-white">AirFTP</span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white">BluuSync</span>
           </div>
 
           <div className="flex items-center gap-6 text-sm text-slate-500">
@@ -27,7 +27,7 @@ export default function Footer() {
           </div>
 
           <p className="text-sm text-slate-500 dark:text-slate-600">
-            &copy; {new Date().getFullYear()} AirFTP. All rights reserved.
+            &copy; {new Date().getFullYear()} BluuSync. All rights reserved.
           </p>
         </div>
       </div>

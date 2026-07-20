@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     await forgotPassword(email, redirectUrl);
   } catch (err) {
-    console.error("AirFTP forgot-password request failed:", err);
+    console.error("BluuSync forgot-password request failed:", err);
   }
 
   // Always respond success so this endpoint can't be used to enumerate emails.

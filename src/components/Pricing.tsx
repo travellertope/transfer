@@ -65,7 +65,7 @@ export default function Pricing() {
 
   const handlePlanClick = async (planName: string) => {
     if (planName === "Enterprise") {
-      window.location.href = "mailto:sales@bluuhq.com?subject=AirFTP%20Enterprise";
+      window.location.href = "mailto:sales@bluuhq.com?subject=BluuSync%20Enterprise";
       return;
     }
 

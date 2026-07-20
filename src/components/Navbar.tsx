@@ -35,7 +35,7 @@ export default function Navbar() {
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <ArrowRightLeft className="w-4 h-4 text-primary-light" />
           </div>
-          <span className="text-lg font-bold text-slate-900 dark:text-white">AirFTP</span>
+          <span className="text-lg font-bold text-slate-900 dark:text-white">BluuSync</span>
         </a>
 
         {/* Desktop Nav */}

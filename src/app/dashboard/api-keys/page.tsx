@@ -139,7 +139,7 @@ export default function ApiKeysPage() {
         <p className="font-medium text-slate-900 dark:text-white mb-2">Usage</p>
         <p>Pass your API key in the <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-xs font-mono">Authorization</code> header:</p>
         <div className="bg-slate-900 dark:bg-black rounded-xl px-4 py-3 font-mono text-xs text-emerald-400 mt-2">
-          Authorization: Bearer airftp_live_…
+          Authorization: Bearer bluusync_live_…
         </div>
       </div>
 

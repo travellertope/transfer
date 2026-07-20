@@ -4,42 +4,42 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AIRFTP_ALLOWED_WEBHOOK_EVENTS', ['transfer.success', 'transfer.failed']);
+define('BLUUSYNC_ALLOWED_WEBHOOK_EVENTS', ['transfer.success', 'transfer.failed']);
 
 add_action('rest_api_init', function () {
-    register_rest_route('airftp/v1', '/webhooks', [
+    register_rest_route('bluusync/v1', '/webhooks', [
         [
             'methods' => 'GET',
-            'callback' => 'airftp_handle_list_webhooks',
+            'callback' => 'bluusync_handle_list_webhooks',
             'permission_callback' => '__return_true',
         ],
         [
             'methods' => 'POST',
-            'callback' => 'airftp_handle_create_webhook',
+            'callback' => 'bluusync_handle_create_webhook',
             'permission_callback' => '__return_true',
         ],
     ]);
 
-    register_rest_route('airftp/v1', '/webhooks/(?P<id>[a-zA-Z0-9\-]+)', [
+    register_rest_route('bluusync/v1', '/webhooks/(?P<id>[a-zA-Z0-9\-]+)', [
         [
             'methods' => 'PUT',
-            'callback' => 'airftp_handle_update_webhook',
+            'callback' => 'bluusync_handle_update_webhook',
             'permission_callback' => '__return_true',
         ],
         [
             'methods' => 'DELETE',
-            'callback' => 'airftp_handle_delete_webhook',
+            'callback' => 'bluusync_handle_delete_webhook',
             'permission_callback' => '__return_true',
         ],
     ]);
 });
 
-function airftp_get_user_webhooks($user_id) {
-    $hooks = get_user_meta($user_id, AIRFTP_WEBHOOKS_META_KEY, true);
+function bluusync_get_user_webhooks($user_id) {
+    $hooks = get_user_meta($user_id, BLUUSYNC_WEBHOOKS_META_KEY, true);
     return is_array($hooks) ? $hooks : [];
 }
 
-function airftp_webhook_payload($hook) {
+function bluusync_webhook_payload($hook) {
     return [
         'id' => $hook['id'],
         'label' => $hook['label'],
@@ -48,22 +48,22 @@ function airftp_webhook_payload($hook) {
         'active' => (bool) $hook['active'],
         'created_at' => $hook['created_at'],
         // Shown persistently (unlike API keys) so the user can configure
-        // their receiver to verify the X-AirFTP-Signature header at any time.
+        // their receiver to verify the X-BluuSync-Signature header at any time.
         'secret' => $hook['secret'] ?? '',
     ];
 }
 
-function airftp_sanitize_webhook_events($events) {
+function bluusync_sanitize_webhook_events($events) {
     if (!is_array($events)) {
         return [];
     }
-    return array_values(array_intersect(array_map('sanitize_text_field', $events), AIRFTP_ALLOWED_WEBHOOK_EVENTS));
+    return array_values(array_intersect(array_map('sanitize_text_field', $events), BLUUSYNC_ALLOWED_WEBHOOK_EVENTS));
 }
 
-function airftp_validate_webhook_input($label, $url, $events) {
+function bluusync_validate_webhook_input($label, $url, $events) {
     if (!$label || !$url || !filter_var($url, FILTER_VALIDATE_URL) || empty($events)) {
         return new WP_Error(
-            'airftp_invalid_input',
+            'bluusync_invalid_input',
             'label, a valid url, and at least one event are required.',
             ['status' => 400]
         );
@@ -71,13 +71,13 @@ function airftp_validate_webhook_input($label, $url, $events) {
     return null;
 }
 
-function airftp_handle_list_webhooks(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_list_webhooks(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
-    $hooks = airftp_get_user_webhooks($user->ID);
+    $hooks = bluusync_get_user_webhooks($user->ID);
 
     // Backfill secrets for webhooks created before signing was added.
     $changed = false;
@@ -88,24 +88,24 @@ function airftp_handle_list_webhooks(WP_REST_Request $request) {
         }
     }
     if ($changed) {
-        update_user_meta($user->ID, AIRFTP_WEBHOOKS_META_KEY, $hooks);
+        update_user_meta($user->ID, BLUUSYNC_WEBHOOKS_META_KEY, $hooks);
     }
 
-    return ['webhooks' => array_map('airftp_webhook_payload', $hooks)];
+    return ['webhooks' => array_map('bluusync_webhook_payload', $hooks)];
 }
 
-function airftp_handle_create_webhook(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_create_webhook(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $label = sanitize_text_field((string) $request->get_param('label'));
     $url = esc_url_raw((string) $request->get_param('url'));
-    $events = airftp_sanitize_webhook_events($request->get_param('events'));
+    $events = bluusync_sanitize_webhook_events($request->get_param('events'));
     $active = (bool) $request->get_param('active');
 
-    $error = airftp_validate_webhook_input($label, $url, $events);
+    $error = bluusync_validate_webhook_input($label, $url, $events);
     if ($error) {
         return $error;
     }
@@ -120,21 +120,21 @@ function airftp_handle_create_webhook(WP_REST_Request $request) {
         'secret' => 'whsec_' . wp_generate_password(40, false, false),
     ];
 
-    $hooks = airftp_get_user_webhooks($user->ID);
+    $hooks = bluusync_get_user_webhooks($user->ID);
     $hooks[] = $entry;
-    update_user_meta($user->ID, AIRFTP_WEBHOOKS_META_KEY, $hooks);
+    update_user_meta($user->ID, BLUUSYNC_WEBHOOKS_META_KEY, $hooks);
 
-    return ['webhook' => airftp_webhook_payload($entry)];
+    return ['webhook' => bluusync_webhook_payload($entry)];
 }
 
-function airftp_handle_update_webhook(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_update_webhook(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $id = (string) $request->get_param('id');
-    $hooks = airftp_get_user_webhooks($user->ID);
+    $hooks = bluusync_get_user_webhooks($user->ID);
 
     $index = null;
     foreach ($hooks as $i => $h) {
@@ -144,15 +144,15 @@ function airftp_handle_update_webhook(WP_REST_Request $request) {
         }
     }
     if ($index === null) {
-        return new WP_Error('airftp_not_found', 'Webhook not found.', ['status' => 404]);
+        return new WP_Error('bluusync_not_found', 'Webhook not found.', ['status' => 404]);
     }
 
     $label = sanitize_text_field((string) $request->get_param('label'));
     $url = esc_url_raw((string) $request->get_param('url'));
-    $events = airftp_sanitize_webhook_events($request->get_param('events'));
+    $events = bluusync_sanitize_webhook_events($request->get_param('events'));
     $active = (bool) $request->get_param('active');
 
-    $error = airftp_validate_webhook_input($label, $url, $events);
+    $error = bluusync_validate_webhook_input($label, $url, $events);
     if ($error) {
         return $error;
     }
@@ -167,29 +167,29 @@ function airftp_handle_update_webhook(WP_REST_Request $request) {
         'secret' => $hooks[$index]['secret'] ?? ('whsec_' . wp_generate_password(40, false, false)),
     ];
 
-    update_user_meta($user->ID, AIRFTP_WEBHOOKS_META_KEY, $hooks);
+    update_user_meta($user->ID, BLUUSYNC_WEBHOOKS_META_KEY, $hooks);
 
-    return ['webhook' => airftp_webhook_payload($hooks[$index])];
+    return ['webhook' => bluusync_webhook_payload($hooks[$index])];
 }
 
-function airftp_handle_delete_webhook(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_delete_webhook(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $id = (string) $request->get_param('id');
-    $hooks = airftp_get_user_webhooks($user->ID);
+    $hooks = bluusync_get_user_webhooks($user->ID);
 
     $filtered = array_values(array_filter($hooks, function ($h) use ($id) {
         return $h['id'] !== $id;
     }));
 
     if (count($filtered) === count($hooks)) {
-        return new WP_Error('airftp_not_found', 'Webhook not found.', ['status' => 404]);
+        return new WP_Error('bluusync_not_found', 'Webhook not found.', ['status' => 404]);
     }
 
-    update_user_meta($user->ID, AIRFTP_WEBHOOKS_META_KEY, $filtered);
+    update_user_meta($user->ID, BLUUSYNC_WEBHOOKS_META_KEY, $filtered);
 
     return ['success' => true];
 }

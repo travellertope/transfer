@@ -28,7 +28,7 @@ function wpUrl(path: string) {
   if (!base) {
     throw new Error("WORDPRESS_URL environment variable is not set.");
   }
-  return `${base.replace(/\/$/, "")}/wp-json/airftp/v1${path}`;
+  return `${base.replace(/\/$/, "")}/wp-json/bluusync/v1${path}`;
 }
 
 async function parseOrThrow<T>(res: Response): Promise<T> {
@@ -103,9 +103,9 @@ export async function validateToken(token: string): Promise<WpUser | null> {
 // Sent as a custom header rather than "Authorization: Bearer ..." — some WP
 // hosts run a security/JWT plugin that inspects any standard Authorization
 // header on every REST request and rejects ours before our own plugin ever
-// sees it. See airftp_extract_token() in the WP plugin's jwt.php.
+// sees it. See bluusync_extract_token() in the WP plugin's jwt.php.
 function authHeaders(token: string) {
-  return { "Content-Type": "application/json", "X-AirFTP-Token": token };
+  return { "Content-Type": "application/json", "X-BluuSync-Token": token };
 }
 
 export async function listConnections(token: string): Promise<SavedConnection[]> {
@@ -282,7 +282,7 @@ export interface Webhook {
   events: string[];
   active: boolean;
   created_at: string;
-  /** Used to sign the X-AirFTP-Signature header on delivered payloads (HMAC-SHA256), so the receiver can verify authenticity. */
+  /** Used to sign the X-BluuSync-Signature header on delivered payloads (HMAC-SHA256), so the receiver can verify authenticity. */
   secret: string;
 }
 
@@ -337,7 +337,7 @@ export async function setUserPro(email: string, isPro: boolean): Promise<WpUser>
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-AirFTP-Admin-Secret": adminSecret,
+      "X-BluuSync-Admin-Secret": adminSecret,
     },
     body: JSON.stringify({ email, isPro }),
   });

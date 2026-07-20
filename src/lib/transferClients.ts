@@ -296,7 +296,7 @@ class GoogleDriveTransferClient implements TransferClient {
     }
     if (meta.size === undefined) {
       throw new Error(
-        `"${meta.name}" doesn't have a transferable file size and isn't a Google Docs/Sheets/Slides/Drawings file AirFTP can export.`
+        `"${meta.name}" doesn't have a transferable file size and isn't a Google Docs/Sheets/Slides/Drawings file BluuSync can export.`
       );
     }
     return meta.size;
