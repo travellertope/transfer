@@ -36,6 +36,18 @@ interface MsTokenResponse {
   token_type: string;
 }
 
+/** Microsoft's token-endpoint error bodies are {error, error_description, ...} — error_description carries the actionable AADSTS code/reason as its first line, followed by trace/correlation noise we don't want to surface. */
+async function microsoftTokenErrorDetail(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    const desc = body?.error_description || body?.error;
+    if (!desc) return "";
+    return `: ${String(desc).split(/\r?\n/)[0]}`;
+  } catch {
+    return "";
+  }
+}
+
 export async function exchangeOneDriveCode(
   code: string,
   redirectUri: string
@@ -54,7 +66,8 @@ export async function exchangeOneDriveCode(
     }),
   });
   if (!res.ok) {
-    throw new Error(`Microsoft rejected the authorization code (${res.status}). Please try connecting again.`);
+    const detail = await microsoftTokenErrorDetail(res);
+    throw new Error(`Microsoft rejected the authorization code (${res.status})${detail}. Please try connecting again.`);
   }
   const data = (await res.json()) as MsTokenResponse;
   if (!data.refresh_token) {
@@ -77,8 +90,9 @@ export async function refreshOneDriveToken(refreshToken: string): Promise<{ acce
     }),
   });
   if (!res.ok) {
+    const detail = await microsoftTokenErrorDetail(res);
     throw new Error(
-      "OneDrive authorization is invalid or has been revoked — reconnect your Microsoft account in Saved Servers."
+      `OneDrive authorization is invalid or has been revoked${detail} — reconnect your Microsoft account in Saved Servers.`
     );
   }
   const data = (await res.json()) as MsTokenResponse;
