@@ -6,7 +6,7 @@ import {
   Clock,
   ShieldCheck,
   Gauge,
-  RefreshCw,
+  Cloud,
 } from "lucide-react";
 
 const features = [
@@ -14,25 +14,25 @@ const features = [
     icon: Globe,
     title: "Server-to-Server Direct",
     description:
-      "Data streams directly between FTP servers. Your browser just kicks it off — nothing is downloaded to your machine.",
+      "Data streams directly between FTP and SFTP servers. Your browser just kicks it off — nothing is downloaded to your machine.",
   },
   {
     icon: HardDrive,
-    title: "3GB+ File Support",
+    title: "Up to 10GB Per File",
     description:
-      "Built for massive files. Backups, databases, media archives — transfer gigabytes without breaking a sweat.",
+      "Built for massive files. Backups, databases, media archives — transfer gigabytes without breaking a sweat (800MB on the Free plan, 10GB on Pro).",
   },
   {
     icon: Clock,
     title: "Set It & Forget It",
     description:
-      "Start the transfer and walk away. Our server handles the stream. Check back for a completion confirmation.",
+      "Start the transfer and walk away. It keeps running on our servers even if you close the tab or lose your connection — check back for a completion confirmation.",
   },
   {
     icon: ShieldCheck,
     title: "Credentials Never Stored",
     description:
-      "FTP credentials are used for the active session only. Nothing is written to disk or logged. Ever.",
+      "FTP/SFTP credentials are used for the active session only by default. Nothing is written to disk or logged. Ever.",
   },
   {
     icon: Gauge,
@@ -41,10 +41,10 @@ const features = [
       "Data streams straight from source to destination in a continuous pipe instead of being buffered in memory, so transfer size isn't limited by available RAM.",
   },
   {
-    icon: RefreshCw,
-    title: "Migration-Ready",
+    icon: Cloud,
+    title: "Cloud & Video Destinations",
     description:
-      "Perfect for website migrations, server moves, and backup distribution. Move wp-content, databases, and archives between hosts.",
+      "Pro connects Google Drive and OneDrive as a source or destination alongside FTP/SFTP, plus one-click uploads straight to YouTube.",
   },
 ];
 

@@ -22,11 +22,15 @@ const faqs = [
   },
   {
     q: "What protocols are supported?",
-    a: "FTP and SFTP (SSH File Transfer Protocol) are both available on every plan — SFTP isn't gated by tier, and we recommend it whenever your servers support it. Pro also unlocks Google Drive as a source or destination alongside FTP/SFTP servers.",
+    a: "FTP and SFTP (SSH File Transfer Protocol) are both available on every plan — SFTP isn't gated by tier, and we recommend it whenever your servers support it. Pro also unlocks Google Drive and OneDrive as a source or destination alongside FTP/SFTP servers, plus uploading straight to YouTube as a destination.",
   },
   {
     q: "What happens if the transfer is interrupted?",
-    a: "The transfer runs on our servers independently of your browser, so closing the tab or losing your own connection doesn't stop it. If the connection to either server drops mid-transfer, we automatically retry with backoff — resuming from the last byte that landed for FTP/SFTP (Google Drive re-uploads from scratch, since Drive doesn't support that kind of resume). If every retry fails, you can re-run it with one click from your Transfer History without re-entering credentials.",
+    a: "The transfer runs on our servers independently of your browser, so closing the tab or losing your own connection doesn't stop it. If the connection to either server drops mid-transfer, we automatically retry with backoff — resuming from the last byte that landed for FTP/SFTP (Google Drive, OneDrive, and YouTube re-upload from scratch on retry, since none of them support that kind of resume). If every retry fails, you can re-run it with one click from your Transfer History without re-entering credentials.",
+  },
+  {
+    q: "How does the YouTube upload work?",
+    a: "Connect your YouTube channel in Saved Servers, then pick it as a transfer destination — it's upload-only, since there's no supported way to pull a video's raw file back off YouTube via their API. Your file uploads as a private video titled from its file name; you finish it up (thumbnail, description, visibility) in YouTube Studio. To keep things within YouTube's API limits, uploads are capped at 2 per day per account.",
   },
   {
     q: "Do I need to keep the browser tab open?",

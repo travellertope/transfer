@@ -31,9 +31,10 @@ export default function Hero() {
 
         {/* Subheadline */}
         <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mb-10 animate-slide-up">
-          Transfer multi-gigabyte files directly from one FTP server to another.
-          No downloading to your machine. No storage limits. Just a direct
-          stream that works while you do other things.
+          Transfer multi-gigabyte files directly between FTP and SFTP servers —
+          or to and from Google Drive, OneDrive, and YouTube. No downloading to
+          your machine. Just a direct stream that keeps running even after you
+          close the tab.
         </p>
 
         {/* CTA Buttons */}
@@ -57,7 +58,7 @@ export default function Hero() {
         <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-500 dark:text-slate-500 animate-slide-up">
           <div className="flex items-center gap-2">
             <Server className="w-4 h-4 text-primary-light" />
-            <span>3GB+ file support</span>
+            <span>Up to 10GB per file (Pro)</span>
           </div>
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary-light" />

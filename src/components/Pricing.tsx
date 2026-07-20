@@ -15,8 +15,8 @@ const plans = [
     features: [
       "3 transfers per month",
       "Up to 800MB per file",
-      "Standard FTP",
-      "Basic transfer logs",
+      "FTP + SFTP support",
+      "Transfer history with one-click retry",
     ],
     cta: "Get Started",
     highlight: false,
@@ -30,9 +30,9 @@ const plans = [
     features: [
       "Unlimited transfers",
       "Up to 10GB per file",
-      "FTP + SFTP support",
-      "Priority queue",
-      "Transfer history",
+      "Google Drive & OneDrive as source or destination",
+      "Upload straight to YouTube",
+      "Email notifications on completion",
       "Webhook notifications",
     ],
     cta: "Start 14-Day Free Trial",
