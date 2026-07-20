@@ -46,7 +46,7 @@ export default function FAQ() {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-            Frequently Asked <span className="gradient-text">Questions</span>
+            Frequently Asked <span className="text-primary-light">Questions</span>
           </h2>
         </div>
 

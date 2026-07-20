@@ -97,7 +97,7 @@ export default function Pricing() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-            Simple, Honest <span className="gradient-text">Pricing</span>
+            Simple, Honest <span className="text-primary-light">Pricing</span>
           </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Start free. Upgrade when you need more power. No surprise fees.

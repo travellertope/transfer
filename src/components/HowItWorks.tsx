@@ -35,7 +35,7 @@ export default function HowItWorks() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-            How It <span className="gradient-text">Works</span>
+            How It <span className="text-primary-light">Works</span>
           </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Four steps. No software to install. No files on your local machine.
@@ -46,7 +46,7 @@ export default function HowItWorks() {
           {steps.map((step, i) => (
             <div key={i} className="relative">
               {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-10 left-full w-full h-px bg-gradient-to-r from-primary/40 to-transparent z-0" />
+                <div className="hidden md:block absolute top-10 left-full w-full h-px bg-primary/20 z-0" />
               )}
               <div className="glass-card rounded-2xl p-6 relative z-10 h-full">
                 <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center mb-4">

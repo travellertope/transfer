@@ -163,7 +163,7 @@ export default function TransferForm() {
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-            Start a <span className="gradient-text">Transfer</span>
+            Start a <span className="text-primary-light">Transfer</span>
           </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Enter the FTP/SFTP credentials for both servers, or connect Google
@@ -274,7 +274,7 @@ export default function TransferForm() {
         </form>
         )}
 
-        <TransferStatusCard transfer={transfer} onCancel={cancel} upgradeHref="#pricing" />
+        <TransferStatusCard transfer={transfer} onCancel={cancel} upgradeHref="#pricing" isPro={!!user?.isPro} />
       </div>
     </section>
   );

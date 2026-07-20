@@ -18,7 +18,7 @@ export default function HomepageTransferCta() {
             <LayoutDashboard className="w-7 h-7 text-primary-light" />
           </div>
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-            Ready to <span className="gradient-text">Transfer?</span>
+            Ready to <span className="text-primary-light">Transfer?</span>
           </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto mb-8">
             Head to your dashboard to start a transfer, manage saved servers, and view your history.
