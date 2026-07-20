@@ -261,10 +261,14 @@ export function ServerFieldsPanel({
                     type="text"
                     value={path}
                     onChange={(e) => setPath(e.target.value)}
-                    placeholder={pathPlaceholder}
+                    placeholder={pickerMode === "file" ? "/Videos/myvideo.mp4" : "/Backups/myvideo.mp4"}
                     className={inputClass}
                     required
                   />
+                  <p className="text-xs text-slate-500 mt-1.5">
+                    The item&apos;s folder path in your OneDrive, exactly as it appears in onedrive.com&apos;s
+                    breadcrumb — not a share link. Right-click the file → Details to see its folder.
+                  </p>
                 </div>
               )}
             </>
