@@ -143,3 +143,61 @@ export async function oneDriveErrorMessage(res: Response): Promise<string> {
   }
   return `OneDrive request failed (${res.status})${message ? `: ${message}` : ""}.`;
 }
+
+/** Graph's documented sharing-URL encoding: base64, then unpadded base64url, prefixed with "u!". */
+function encodeSharingUrl(url: string): string {
+  const base64 = Buffer.from(url, "utf-8").toString("base64");
+  const base64url = base64.replace(/=+$/, "").replace(/\//g, "_").replace(/\+/g, "-");
+  return `u!${base64url}`;
+}
+
+export async function getOneDriveDriveId(accessToken: string): Promise<string> {
+  const res = await fetch("https://graph.microsoft.com/v1.0/me/drive?$select=id", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(await oneDriveErrorMessage(res));
+  const data = await res.json();
+  return data.id as string;
+}
+
+/**
+ * Resolves ANY OneDrive/SharePoint share link (short 1drv.ms links, the
+ * stream.aspx/onedrive.aspx viewer links OneDrive for Business generates,
+ * direct share links — Graph decodes the token itself, so this doesn't need
+ * to guess at URL shapes or locale-specific library names) into the item's
+ * path relative to its own drive's root, plus which drive it actually lives
+ * in — the caller decides whether that matches the connected account.
+ */
+export async function resolveOneDriveShareLink(
+  accessToken: string,
+  shareUrl: string
+): Promise<{ path: string; name: string; isFolder: boolean; driveId: string }> {
+  const encoded = encodeSharingUrl(shareUrl);
+  const res = await fetch(
+    `https://graph.microsoft.com/v1.0/shares/${encoded}/driveItem?$select=id,name,parentReference,folder`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) {
+    if (res.status === 400 || res.status === 404) {
+      throw new Error("That doesn't look like a valid OneDrive/SharePoint link, or it isn't accessible with this account.");
+    }
+    throw new Error(await oneDriveErrorMessage(res));
+  }
+  const data = await res.json();
+
+  // parentReference.path looks like "/drive/root:/Folder/Subfolder" or
+  // "/drives/{id}/root:/Folder/Subfolder" — either way, what comes after
+  // "root:" is the path relative to that drive's root.
+  const parentPath: string = data?.parentReference?.path || "";
+  const marker = "root:";
+  const markerIndex = parentPath.indexOf(marker);
+  const relativeDir = markerIndex === -1 ? "" : parentPath.slice(markerIndex + marker.length);
+  const name = (data.name as string) || "";
+
+  return {
+    path: `${relativeDir}/${name}`.replace(/\/+/g, "/"),
+    name,
+    isFolder: !!data.folder,
+    driveId: (data?.parentReference?.driveId as string) || "",
+  };
+}
