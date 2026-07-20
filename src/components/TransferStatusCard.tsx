@@ -8,10 +8,13 @@ export function TransferStatusCard({
   transfer,
   onCancel,
   upgradeHref,
+  isPro,
 }: {
   transfer: TransferUiState;
   onCancel: () => void;
   upgradeHref: string;
+  /** Some limit errors (e.g. YouTube's daily upload cap) apply uniformly regardless of plan — upgrading wouldn't help, so the CTA shouldn't show for a user who's already Pro. */
+  isPro?: boolean;
 }) {
   if (transfer.status === "idle") {
     return null;
@@ -92,7 +95,7 @@ export function TransferStatusCard({
       <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
       <p className="text-slate-900 dark:text-white font-medium mb-1">Transfer Failed</p>
       <p className="text-sm text-red-600 dark:text-red-300 mb-2">{transfer.message}</p>
-      {transfer.limitExceeded && (
+      {transfer.limitExceeded && !isPro && (
         <a href={upgradeHref} className="text-sm text-primary-light hover:underline">
           Upgrade to Pro for 10GB transfers →
         </a>

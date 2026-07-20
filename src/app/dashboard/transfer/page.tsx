@@ -211,7 +211,7 @@ export default function TransferPage() {
         </div>
       </form>
 
-      <TransferStatusCard transfer={transfer} onCancel={cancel} upgradeHref="/#pricing" />
+      <TransferStatusCard transfer={transfer} onCancel={cancel} upgradeHref="/#pricing" isPro={!!user?.isPro} />
     </div>
   );
 }
