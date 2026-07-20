@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Server, HardDrive, Youtube, Trash2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { Server, HardDrive, Youtube, Cloud, Trash2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { GoogleDrivePicker } from "./GoogleDrivePicker";
 import type { SavedConnection } from "@/lib/wordpress";
 import type { Protocol } from "@/lib/transferClients";
@@ -89,8 +89,9 @@ export function ServerFieldsPanel({
     setPathDisplayName("");
   }, [savedId, protocol]);
 
+  const oauthProtocols: Protocol[] = ["gdrive", "youtube", "onedrive"];
   const filteredSaved = savedConnections.filter((c) =>
-    protocol === "gdrive" || protocol === "youtube" ? c.protocol === protocol : c.protocol !== "gdrive" && c.protocol !== "youtube"
+    oauthProtocols.includes(protocol) ? c.protocol === protocol : !oauthProtocols.includes(c.protocol)
   );
 
   return (
@@ -101,6 +102,8 @@ export function ServerFieldsPanel({
             <HardDrive className="w-5 h-5" />
           ) : protocol === "youtube" ? (
             <Youtube className="w-5 h-5" />
+          ) : protocol === "onedrive" ? (
+            <Cloud className="w-5 h-5" />
           ) : (
             <Server className="w-5 h-5" />
           )}
@@ -128,6 +131,7 @@ export function ServerFieldsPanel({
             {pickerMode === "folder" && (
               <option value="youtube">YouTube{isPro ? "" : " (Pro)"}</option>
             )}
+            <option value="onedrive">OneDrive{isPro ? "" : " (Pro)"}</option>
           </select>
         </div>
 
@@ -214,6 +218,56 @@ export function ServerFieldsPanel({
                 The source file uploads as a private video, titled from its file name. Finish it up (thumbnail, description, visibility) in YouTube Studio.
               </p>
             </div>
+          )
+        ) : protocol === "onedrive" ? (
+          !isPro ? (
+            <div className="text-sm text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4">
+              OneDrive transfers are a Pro feature.{" "}
+              <a href="/#pricing" className="text-primary-light hover:underline">Upgrade</a> to connect an account.
+            </div>
+          ) : (
+            <>
+              {filteredSaved.length === 0 ? (
+                <div className="text-sm text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4">
+                  No Microsoft account connected yet.{" "}
+                  <a href="/dashboard/servers" className="text-primary-light hover:underline">Connect one in Saved Servers</a>.
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor={`${idPrefix}-onedrive-account`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+                    Microsoft Account
+                  </label>
+                  <select
+                    id={`${idPrefix}-onedrive-account`}
+                    value={savedId}
+                    onChange={(e) => onSavedChange(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Choose an account...</option>
+                    {filteredSaved.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {savedId && (
+                <div>
+                  <label htmlFor={`${idPrefix}-path`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+                    {pathLabel}
+                  </label>
+                  <input
+                    id={`${idPrefix}-path`}
+                    type="text"
+                    value={path}
+                    onChange={(e) => setPath(e.target.value)}
+                    placeholder={pathPlaceholder}
+                    className={inputClass}
+                    required
+                  />
+                </div>
+              )}
+            </>
           )
         ) : (
           <>
@@ -315,7 +369,7 @@ export function ServerFieldsPanel({
           </>
         )}
 
-        {protocol !== "gdrive" && protocol !== "youtube" && (
+        {!oauthProtocols.includes(protocol) && (
           <div className="space-y-2 pt-1">
             <label className="flex items-center gap-2 cursor-pointer">
               <input

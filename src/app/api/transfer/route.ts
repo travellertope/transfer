@@ -7,7 +7,7 @@ import { enqueueJob } from "@/lib/transferWorker";
 import { addHistory, listHistory } from "@/lib/wordpress";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
-  const protocols: Protocol[] = ["ftp", "sftp", "gdrive", "youtube"];
+  const protocols: Protocol[] = ["ftp", "sftp", "gdrive", "youtube", "onedrive"];
   return {
     ...config,
     protocol: protocols.includes(config.protocol) ? config.protocol : "ftp",
@@ -104,6 +104,12 @@ export async function POST(req: NextRequest) {
   if ((source.protocol === "gdrive" || destination.protocol === "gdrive") && !user.isPro) {
     return NextResponse.json(
       { success: false, error: "Google Drive transfers are a Pro feature. Upgrade to use them." },
+      { status: 403 }
+    );
+  }
+  if ((source.protocol === "onedrive" || destination.protocol === "onedrive") && !user.isPro) {
+    return NextResponse.json(
+      { success: false, error: "OneDrive transfers are a Pro feature. Upgrade to use them." },
       { status: 403 }
     );
   }

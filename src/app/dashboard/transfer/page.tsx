@@ -99,7 +99,7 @@ export default function TransferPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (saveSource && srcProtocol !== "gdrive" && srcProtocol !== "youtube") {
+    if (saveSource && srcProtocol !== "gdrive" && srcProtocol !== "youtube" && srcProtocol !== "onedrive") {
       const label = srcLabel.trim() || srcHost;
       saveServer(label, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath).then((ok) => {
         setSrcSaveStatus(ok ? "success" : "error");
@@ -107,7 +107,7 @@ export default function TransferPage() {
       });
       setSaveSource(false); setSrcLabel("");
     }
-    if (saveDest && dstProtocol !== "gdrive" && dstProtocol !== "youtube") {
+    if (saveDest && dstProtocol !== "gdrive" && dstProtocol !== "youtube" && dstProtocol !== "onedrive") {
       const label = dstLabel.trim() || dstHost;
       saveServer(label, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath).then((ok) => {
         setDstSaveStatus(ok ? "success" : "error");

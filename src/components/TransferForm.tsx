@@ -119,7 +119,7 @@ export default function TransferForm() {
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (saveSource && sourceProtocol !== "gdrive" && sourceProtocol !== "youtube") {
+    if (saveSource && sourceProtocol !== "gdrive" && sourceProtocol !== "youtube" && sourceProtocol !== "onedrive") {
       const label = sourceLabel.trim() || sourceHost;
       saveServer(label, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath).then((ok) => {
         setSourceSaveStatus(ok ? "success" : "error");
@@ -128,7 +128,7 @@ export default function TransferForm() {
       setSaveSource(false);
       setSourceLabel("");
     }
-    if (saveDest && destProtocol !== "gdrive" && destProtocol !== "youtube") {
+    if (saveDest && destProtocol !== "gdrive" && destProtocol !== "youtube" && destProtocol !== "onedrive") {
       const label = destLabel.trim() || destHost;
       saveServer(label, destProtocol, destHost, destPort, destUser, destPass, destPath).then((ok) => {
         setDestSaveStatus(ok ? "success" : "error");

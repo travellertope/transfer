@@ -1,5 +1,5 @@
 import { PassThrough } from "stream";
-import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
+import { createTransferClient, isRetryableTransferError, type TransferClient, type Protocol } from "./transferClients";
 import { updateHistory, notifyTransferComplete, listWebhooks } from "./wordpress";
 import { dispatchWebhooksForEvent } from "./webhookDispatch";
 import { getJob, updateJob, type TransferJob } from "./jobs";
@@ -80,11 +80,12 @@ async function runJob(jobId: string): Promise<void> {
         await destClient.ensureDir(destDir);
       }
 
-      // Google Drive and YouTube have no byte-offset "append to existing
-      // file" — a retry just re-uploads from scratch, so resume only
-      // applies to FTP/SFTP destinations.
+      // Google Drive, YouTube, and OneDrive have no byte-offset "append to
+      // existing file" support in this app — a retry just re-uploads from
+      // scratch, so resume only applies to FTP/SFTP destinations.
+      const NO_RESUME_PROTOCOLS: Protocol[] = ["gdrive", "youtube", "onedrive"];
       const resumeOffset =
-        job.attempts > 1 && job.destination.protocol !== "gdrive" && job.destination.protocol !== "youtube"
+        job.attempts > 1 && !NO_RESUME_PROTOCOLS.includes(job.destination.protocol)
           ? await sizeSafe(destClient, job.destination.path)
           : 0;
 
@@ -140,7 +141,7 @@ async function runJob(jobId: string): Promise<void> {
 
       await Promise.all([
         sourceClient.downloadTo(pipe, job.source.path, resumeOffset),
-        destClient.uploadFrom(pipe, destinationPath, resumeOffset > 0),
+        destClient.uploadFrom(pipe, destinationPath, resumeOffset > 0, job.totalBytes ?? undefined),
       ]);
 
       sourceClient.close();

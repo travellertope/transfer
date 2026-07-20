@@ -4,8 +4,9 @@ import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import type { Writable } from "stream";
 import { driveErrorMessage, refreshAccessToken } from "./googleDrive";
+import { oneDriveErrorMessage, refreshOneDriveToken } from "./oneDrive";
 
-export type Protocol = "ftp" | "sftp" | "gdrive" | "youtube";
+export type Protocol = "ftp" | "sftp" | "gdrive" | "youtube" | "onedrive";
 
 // ssh2's SFTP read/write streams issue one request per highWaterMark-sized
 // chunk and wait for the round-trip before the next — bumping this well
@@ -29,8 +30,13 @@ export interface TransferClient {
   fileName(path: string): Promise<string>;
   /** startAt resumes a partial download from a byte offset (0 = from the start). */
   downloadTo(destination: Writable, path: string, startAt?: number): Promise<void>;
-  /** append writes onto an existing remote file instead of replacing it, for resuming an interrupted upload. */
-  uploadFrom(source: Readable, path: string, append?: boolean): Promise<void>;
+  /**
+   * append writes onto an existing remote file instead of replacing it, for
+   * resuming an interrupted upload. totalBytes is an optional hint some
+   * destinations need upfront (OneDrive's chunked upload must declare the
+   * final size on every chunk) — ignored by destinations that don't need it.
+   */
+  uploadFrom(source: Readable, path: string, append?: boolean, totalBytes?: number): Promise<void>;
   ensureDir(dir: string): Promise<void>;
   close(): void;
 }
@@ -471,9 +477,194 @@ class YouTubeTransferClient implements TransferClient {
   }
 }
 
+function encodeOneDrivePath(path: string): string {
+  return path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+}
+
+// Graph's chunked upload requires each chunk's size to be a multiple of
+// 320 KiB (except the final one) — 10 MiB is a clean multiple (32x) and a
+// reasonable round-trip size.
+const ONEDRIVE_UPLOAD_CHUNK_SIZE = 10 * 1024 * 1024;
+
+async function* chunkStream(source: Readable, size: number): AsyncGenerator<Buffer> {
+  let leftover = Buffer.alloc(0);
+  for await (const part of source) {
+    let buf = Buffer.concat([leftover, Buffer.isBuffer(part) ? part : Buffer.from(part)]);
+    while (buf.length >= size) {
+      yield buf.subarray(0, size);
+      buf = buf.subarray(size);
+    }
+    leftover = buf;
+  }
+  if (leftover.length > 0) yield leftover;
+}
+
+/**
+ * OneDrive, unlike Google Drive, addresses items by a real filesystem-style
+ * path (e.g. "/Documents/report.pdf") rather than an opaque ID — so it needs
+ * no picker widget; `path` here works exactly like an FTP/SFTP path.
+ * `config.password` carries the account's OAuth refresh token.
+ */
+class OneDriveTransferClient implements TransferClient {
+  private refreshToken = "";
+  private accessToken = "";
+  private accessTokenExpiry = 0;
+
+  async connect(config: ServerConfig) {
+    this.refreshToken = config.password;
+    if (!this.refreshToken) {
+      throw new Error(
+        "This OneDrive connection is missing its authorization — reconnect your Microsoft account in Saved Servers."
+      );
+    }
+    await this.ensureAccessToken();
+  }
+
+  private async ensureAccessToken() {
+    if (this.accessToken && Date.now() < this.accessTokenExpiry - 60_000) {
+      return;
+    }
+    const { accessToken, expiresIn } = await refreshOneDriveToken(this.refreshToken);
+    this.accessToken = accessToken;
+    this.accessTokenExpiry = Date.now() + expiresIn * 1000;
+  }
+
+  private async getMetadata(path: string): Promise<{ name: string; size: number; isFolder: boolean }> {
+    await this.ensureAccessToken();
+    const res = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${encodeOneDrivePath(path)}`, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+    });
+    if (!res.ok) throw new Error(await oneDriveErrorMessage(res));
+    const data = await res.json();
+    return { name: (data.name as string) || basename(path), size: Number(data.size ?? 0), isFolder: !!data.folder };
+  }
+
+  async size(path: string) {
+    const meta = await this.getMetadata(path);
+    if (meta.isFolder) {
+      throw new Error("That's a OneDrive folder, not a file — pick a file to transfer.");
+    }
+    return meta.size;
+  }
+
+  async fileName(path: string) {
+    const meta = await this.getMetadata(path);
+    return meta.name;
+  }
+
+  async downloadTo(destination: Writable, path: string, startAt = 0) {
+    await this.ensureAccessToken();
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeOneDrivePath(path)}:/content`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          ...(startAt > 0 ? { Range: `bytes=${startAt}-` } : {}),
+        },
+      }
+    );
+    if (!res.ok && res.status !== 206) {
+      throw new Error(await oneDriveErrorMessage(res));
+    }
+    if (!res.body) {
+      throw new Error("OneDrive returned an empty response body.");
+    }
+    await pipeline(Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]), destination);
+  }
+
+  /**
+   * Graph's chunked upload session declares the file's final size on every
+   * chunk's Content-Range header, so — unlike Drive/YouTube's streamed
+   * resumable PUT — the total has to be known before the first byte goes
+   * out. That's always available here (the worker probes the source's size
+   * up front), except for a Drive source exporting a Docs/Sheets/Slides
+   * file, whose exported size isn't knowable in advance.
+   */
+  async uploadFrom(source: Readable, path: string, _append?: boolean, totalBytes?: number) {
+    await this.ensureAccessToken();
+    if (!totalBytes || totalBytes <= 0) {
+      throw new Error(
+        "OneDrive uploads need the file's size upfront, which wasn't available for this source (e.g. an exported Google Docs/Sheets/Slides file)."
+      );
+    }
+
+    const sessionRes = await fetch(
+      `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeOneDrivePath(path)}:/createUploadSession`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "replace" } }),
+      }
+    );
+    if (!sessionRes.ok) {
+      throw new Error(await oneDriveErrorMessage(sessionRes));
+    }
+    const { uploadUrl } = await sessionRes.json();
+    if (!uploadUrl) {
+      throw new Error("OneDrive didn't return an upload session URL.");
+    }
+
+    let offset = 0;
+    for await (const part of chunkStream(source, ONEDRIVE_UPLOAD_CHUNK_SIZE)) {
+      const end = offset + part.length - 1;
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Length": String(part.length),
+          "Content-Range": `bytes ${offset}-${end}/${totalBytes}`,
+        },
+        body: part as unknown as BodyInit,
+      });
+      if (!res.ok && res.status !== 200 && res.status !== 201 && res.status !== 202) {
+        throw new Error(await oneDriveErrorMessage(res));
+      }
+      offset += part.length;
+    }
+    if (offset !== totalBytes) {
+      throw new Error(`OneDrive upload incomplete: sent ${offset} of ${totalBytes} bytes.`);
+    }
+  }
+
+  /** Graph requires a path's parent folders to already exist — create any that are missing, one segment at a time. */
+  async ensureDir(dir: string) {
+    if (!dir) return;
+    await this.ensureAccessToken();
+    const segments = dir.split("/").filter(Boolean);
+    let pathSoFar = "";
+    for (const segment of segments) {
+      const nextPath = pathSoFar ? `${pathSoFar}/${segment}` : segment;
+      const checkRes = await fetch(
+        `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeOneDrivePath(nextPath)}`,
+        { headers: { Authorization: `Bearer ${this.accessToken}` } }
+      );
+      if (checkRes.status === 404) {
+        const createUrl = pathSoFar
+          ? `https://graph.microsoft.com/v1.0/me/drive/root:/${encodeOneDrivePath(pathSoFar)}:/children`
+          : "https://graph.microsoft.com/v1.0/me/drive/root/children";
+        const createRes = await fetch(createUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${this.accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: segment, folder: {}, "@microsoft.graph.conflictBehavior": "fail" }),
+        });
+        if (!createRes.ok && createRes.status !== 409) {
+          throw new Error(await oneDriveErrorMessage(createRes));
+        }
+      } else if (!checkRes.ok) {
+        throw new Error(await oneDriveErrorMessage(checkRes));
+      }
+      pathSoFar = nextPath;
+    }
+  }
+
+  close() {
+    /* stateless REST calls — nothing to close */
+  }
+}
+
 export function createTransferClient(protocol: Protocol): TransferClient {
   if (protocol === "sftp") return new SftpTransferClient();
   if (protocol === "gdrive") return new GoogleDriveTransferClient();
   if (protocol === "youtube") return new YouTubeTransferClient();
+  if (protocol === "onedrive") return new OneDriveTransferClient();
   return new FtpTransferClient();
 }
