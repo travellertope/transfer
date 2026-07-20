@@ -4,29 +4,13 @@ import { ArrowRight, Zap, Server, Shield } from "lucide-react";
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center hero-gradient pt-20">
-      {/* Background grid */}
-      <div
-        className="absolute inset-0 opacity-5"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(99,102,241,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.3) 1px, transparent 1px)",
-          backgroundSize: "60px 60px",
-        }}
-      />
-
+    <section className="relative min-h-screen flex items-center justify-center pt-20">
       <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/10 text-primary-light text-sm mb-8 animate-slide-up">
-          <Zap className="w-4 h-4" />
-          <span>Server-to-Server Streaming — No Middleman</span>
-        </div>
-
         {/* Headline */}
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 text-slate-900 dark:text-white animate-slide-up">
           Move Massive Files
           <br />
-          <span className="gradient-text">Between Servers</span>
+          <span className="text-primary-light">Between Servers</span>
         </h1>
 
         {/* Subheadline */}

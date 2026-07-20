@@ -54,7 +54,7 @@ export default function Features() {
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-            Built for <span className="gradient-text">Heavy Lifting</span>
+            Built for <span className="text-primary-light">Heavy Lifting</span>
           </h2>
           <p className="text-slate-600 dark:text-slate-400 max-w-xl mx-auto">
             Every feature is designed around one goal: moving large files
