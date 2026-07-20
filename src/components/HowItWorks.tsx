@@ -5,27 +5,27 @@ import { Upload, ArrowRightLeft, Download, CheckCircle } from "lucide-react";
 const steps = [
   {
     icon: Upload,
-    title: "Enter Source Server",
+    title: "Pick a Source",
     description:
-      "Provide the FTP credentials and file path for the server you want to copy FROM.",
+      "Enter FTP/SFTP credentials and a file path, or connect Google Drive or OneDrive — for the file you want to copy FROM.",
   },
   {
     icon: Download,
-    title: "Enter Destination Server",
+    title: "Pick a Destination",
     description:
-      "Provide the FTP credentials and path for the server you want to send the file TO.",
+      "Enter FTP/SFTP credentials and a path, or connect Google Drive, OneDrive, or a YouTube channel — for where the file goes TO.",
   },
   {
     icon: ArrowRightLeft,
     title: "We Stream Directly",
     description:
-      "Our server opens a read-stream from source and a write-stream to destination. Data flows server-to-server — never touches your machine.",
+      "Our server opens a read-stream from source and a write-stream to destination. Data flows through our servers — never touches your machine.",
   },
   {
     icon: CheckCircle,
     title: "Done. File Transferred.",
     description:
-      "Get a confirmation with total bytes transferred. Your 3GB+ file is on the new server.",
+      "Get a confirmation with total bytes transferred. It keeps running even if you close the tab, and Pro emails you the moment it's done.",
   },
 ];
 
