@@ -80,11 +80,11 @@ async function runJob(jobId: string): Promise<void> {
         await destClient.ensureDir(destDir);
       }
 
-      // Google Drive has no byte-offset "append to existing file" — a retry
-      // just re-uploads the file from scratch, so resume only applies to
-      // FTP/SFTP destinations.
+      // Google Drive and YouTube have no byte-offset "append to existing
+      // file" — a retry just re-uploads from scratch, so resume only
+      // applies to FTP/SFTP destinations.
       const resumeOffset =
-        job.attempts > 1 && job.destination.protocol !== "gdrive"
+        job.attempts > 1 && job.destination.protocol !== "gdrive" && job.destination.protocol !== "youtube"
           ? await sizeSafe(destClient, job.destination.path)
           : 0;
 
@@ -98,9 +98,13 @@ async function runJob(jobId: string): Promise<void> {
 
       // Drive destinations are "<folderId>" only — it needs a file name too,
       // which it doesn't have a path segment for, so borrow the source's.
+      // YouTube has no path at all — the "path" it gets is the video title,
+      // which is just the source's file name.
       const destinationPath =
         job.destination.protocol === "gdrive"
           ? `${job.destination.path}/${await sourceClient.fileName(job.source.path)}`
+          : job.destination.protocol === "youtube"
+          ? await sourceClient.fileName(job.source.path)
           : job.destination.path;
 
       updateJob(jobId, { status: "transferring", bytesTransferred: resumeOffset, bytesPerSecond: null });

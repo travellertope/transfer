@@ -5,7 +5,7 @@ import { pipeline } from "stream/promises";
 import type { Writable } from "stream";
 import { driveErrorMessage, refreshAccessToken } from "./googleDrive";
 
-export type Protocol = "ftp" | "sftp" | "gdrive";
+export type Protocol = "ftp" | "sftp" | "gdrive" | "youtube";
 
 // ssh2's SFTP read/write streams issue one request per highWaterMark-sized
 // chunk and wait for the round-trip before the next — bumping this well
@@ -379,8 +379,101 @@ class GoogleDriveTransferClient implements TransferClient {
   }
 }
 
+/**
+ * Upload-only — there's no supported way to fetch a video's raw file back
+ * off YouTube via the API (against their terms), so this can only ever be
+ * used as a transfer destination. size/fileName/downloadTo exist to satisfy
+ * the interface but reject if ever invoked, which would only happen if a
+ * YouTube connection were mistakenly selected as a source.
+ */
+class YouTubeTransferClient implements TransferClient {
+  private refreshToken = "";
+  private accessToken = "";
+  private accessTokenExpiry = 0;
+
+  async connect(config: ServerConfig) {
+    this.refreshToken = config.password;
+    if (!this.refreshToken) {
+      throw new Error(
+        "This YouTube connection is missing its authorization — reconnect your YouTube account in Saved Servers."
+      );
+    }
+    await this.ensureAccessToken();
+  }
+
+  private async ensureAccessToken() {
+    if (this.accessToken && Date.now() < this.accessTokenExpiry - 60_000) {
+      return;
+    }
+    const { accessToken, expiresIn } = await refreshAccessToken(this.refreshToken);
+    this.accessToken = accessToken;
+    this.accessTokenExpiry = Date.now() + expiresIn * 1000;
+  }
+
+  async size(): Promise<number> {
+    throw new Error("YouTube can only be used as a transfer destination, not a source.");
+  }
+
+  async fileName(): Promise<string> {
+    throw new Error("YouTube can only be used as a transfer destination, not a source.");
+  }
+
+  async downloadTo(): Promise<void> {
+    throw new Error("YouTube can only be used as a transfer destination, not a source.");
+  }
+
+  /** path is the video title — there's no folder/playlist concept to route into. */
+  async uploadFrom(source: Readable, path: string) {
+    await this.ensureAccessToken();
+    const title = path || "Untitled upload";
+
+    const initRes = await fetch(
+      "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json; charset=UTF-8",
+          "X-Upload-Content-Type": "video/*",
+        },
+        body: JSON.stringify({
+          snippet: { title },
+          // Always upload private — nobody wants an unedited transfer going
+          // live by accident. The user finishes it up in YouTube Studio.
+          status: { privacyStatus: "private" },
+        }),
+      }
+    );
+    if (!initRes.ok) {
+      throw new Error(await driveErrorMessage(initRes));
+    }
+    const sessionUrl = initRes.headers.get("location");
+    if (!sessionUrl) {
+      throw new Error("YouTube didn't return an upload session URL.");
+    }
+
+    const uploadRes = await fetch(sessionUrl, {
+      method: "PUT",
+      body: Readable.toWeb(source) as unknown as BodyInit,
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    if (!uploadRes.ok) {
+      throw new Error(await driveErrorMessage(uploadRes));
+    }
+  }
+
+  async ensureDir() {
+    /* no-op: a YouTube channel has nothing resembling a directory to create */
+  }
+
+  close() {
+    /* stateless REST calls — nothing to close */
+  }
+}
+
 export function createTransferClient(protocol: Protocol): TransferClient {
   if (protocol === "sftp") return new SftpTransferClient();
   if (protocol === "gdrive") return new GoogleDriveTransferClient();
+  if (protocol === "youtube") return new YouTubeTransferClient();
   return new FtpTransferClient();
 }

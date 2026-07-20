@@ -67,7 +67,7 @@ function airftp_connection_payload($conn) {
  * Validates a protocol param, defaulting to 'ftp' when absent/unrecognized.
  */
 function airftp_sanitize_protocol($protocol) {
-    if (in_array($protocol, ['sftp', 'gdrive'], true)) {
+    if (in_array($protocol, ['sftp', 'gdrive', 'youtube'], true)) {
         return $protocol;
     }
     return 'ftp';

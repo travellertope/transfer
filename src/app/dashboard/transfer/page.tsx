@@ -48,7 +48,7 @@ export default function TransferPage() {
   const applySaved = (panel: "source" | "destination", id: string) => {
     const conn = connections.find((c) => c.id === id);
     if (!conn) return;
-    const path = conn.protocol === "gdrive" ? "" : conn.path;
+    const path = conn.protocol === "gdrive" ? "" : conn.protocol === "youtube" ? "uploads" : conn.path;
     if (panel === "source") {
       setSrcProtocol(conn.protocol ?? "ftp"); setSrcHost(conn.host); setSrcPort(conn.port ? String(conn.port) : "");
       setSrcUser(conn.user); setSrcPass(conn.password); setSrcPath(path);
@@ -99,7 +99,7 @@ export default function TransferPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (saveSource && srcProtocol !== "gdrive") {
+    if (saveSource && srcProtocol !== "gdrive" && srcProtocol !== "youtube") {
       const label = srcLabel.trim() || srcHost;
       saveServer(label, srcProtocol, srcHost, srcPort, srcUser, srcPass, srcPath).then((ok) => {
         setSrcSaveStatus(ok ? "success" : "error");
@@ -107,7 +107,7 @@ export default function TransferPage() {
       });
       setSaveSource(false); setSrcLabel("");
     }
-    if (saveDest && dstProtocol !== "gdrive") {
+    if (saveDest && dstProtocol !== "gdrive" && dstProtocol !== "youtube") {
       const label = dstLabel.trim() || dstHost;
       saveServer(label, dstProtocol, dstHost, dstPort, dstUser, dstPass, dstPath).then((ok) => {
         setDstSaveStatus(ok ? "success" : "error");

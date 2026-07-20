@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Server, HardDrive, Trash2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { Server, HardDrive, Youtube, Trash2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { GoogleDrivePicker } from "./GoogleDrivePicker";
 import type { SavedConnection } from "@/lib/wordpress";
 import type { Protocol } from "@/lib/transferClients";
@@ -90,14 +90,20 @@ export function ServerFieldsPanel({
   }, [savedId, protocol]);
 
   const filteredSaved = savedConnections.filter((c) =>
-    protocol === "gdrive" ? c.protocol === "gdrive" : c.protocol !== "gdrive"
+    protocol === "gdrive" || protocol === "youtube" ? c.protocol === protocol : c.protocol !== "gdrive" && c.protocol !== "youtube"
   );
 
   return (
     <div className="glass-card rounded-2xl p-6">
       <div className="flex items-center gap-3 mb-5">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${iconColor}`}>
-          {protocol === "gdrive" ? <HardDrive className="w-5 h-5" /> : <Server className="w-5 h-5" />}
+          {protocol === "gdrive" ? (
+            <HardDrive className="w-5 h-5" />
+          ) : protocol === "youtube" ? (
+            <Youtube className="w-5 h-5" />
+          ) : (
+            <Server className="w-5 h-5" />
+          )}
         </div>
         <div>
           <h3 className="font-semibold text-slate-900 dark:text-white">{title}</h3>
@@ -119,6 +125,9 @@ export function ServerFieldsPanel({
             <option value="ftp">FTP</option>
             <option value="sftp">SFTP</option>
             <option value="gdrive">Google Drive{isPro ? "" : " (Pro)"}</option>
+            {pickerMode === "folder" && (
+              <option value="youtube">YouTube{isPro ? "" : " (Pro)"}</option>
+            )}
           </select>
         </div>
 
@@ -173,6 +182,38 @@ export function ServerFieldsPanel({
                 </div>
               )}
             </>
+          )
+        ) : protocol === "youtube" ? (
+          !isPro ? (
+            <div className="text-sm text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4">
+              YouTube uploads are a Pro feature.{" "}
+              <a href="/#pricing" className="text-primary-light hover:underline">Upgrade</a> to connect a channel.
+            </div>
+          ) : filteredSaved.length === 0 ? (
+            <div className="text-sm text-slate-500 border border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4">
+              No YouTube account connected yet.{" "}
+              <a href="/dashboard/servers" className="text-primary-light hover:underline">Connect one in Saved Servers</a>.
+            </div>
+          ) : (
+            <div>
+              <label htmlFor={`${idPrefix}-youtube-account`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+                YouTube Channel
+              </label>
+              <select
+                id={`${idPrefix}-youtube-account`}
+                value={savedId}
+                onChange={(e) => onSavedChange(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Choose a channel...</option>
+                {filteredSaved.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1.5">
+                The source file uploads as a private video, titled from its file name. Finish it up (thumbnail, description, visibility) in YouTube Studio.
+              </p>
+            </div>
           )
         ) : (
           <>
@@ -274,7 +315,7 @@ export function ServerFieldsPanel({
           </>
         )}
 
-        {protocol !== "gdrive" && (
+        {protocol !== "gdrive" && protocol !== "youtube" && (
           <div className="space-y-2 pt-1">
             <label className="flex items-center gap-2 cursor-pointer">
               <input

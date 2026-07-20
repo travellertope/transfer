@@ -1,6 +1,10 @@
 export const FREE_LIMIT_BYTES = 800 * 1024 * 1024;
 export const PRO_LIMIT_BYTES = 10 * 1024 * 1024 * 1024;
 export const FREE_MONTHLY_TRANSFER_LIMIT = 3;
+// YouTube's API quota (uploads/day) is shared across the whole app, not
+// per user — capping each user keeps one account from being able to burn
+// through the entire shared daily quota alone.
+export const YOUTUBE_DAILY_UPLOAD_LIMIT = 2;
 
 export function limitForUser(isPro: boolean) {
   return isPro ? PRO_LIMIT_BYTES : FREE_LIMIT_BYTES;

@@ -13,6 +13,7 @@ import {
   EyeOff,
   CheckCircle2,
   HardDrive,
+  Youtube,
   AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
@@ -179,6 +180,8 @@ export default function ServersPage() {
   const [justSaved, setJustSaved] = useState<string | null>(null);
   const [gdriveConnected, setGdriveConnected] = useState(false);
   const [gdriveError, setGdriveError] = useState("");
+  const [youtubeConnected, setYoutubeConnected] = useState(false);
+  const [youtubeError, setYoutubeError] = useState("");
 
   useEffect(() => {
     fetch("/api/connections")
@@ -189,7 +192,14 @@ export default function ServersPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("gdrive_connected")) setGdriveConnected(true);
     if (params.get("gdrive_error")) setGdriveError(params.get("gdrive_error") || "Failed to connect Google Drive.");
-    if (params.has("gdrive_connected") || params.has("gdrive_error")) {
+    if (params.get("youtube_connected")) setYoutubeConnected(true);
+    if (params.get("youtube_error")) setYoutubeError(params.get("youtube_error") || "Failed to connect YouTube.");
+    if (
+      params.has("gdrive_connected") ||
+      params.has("gdrive_error") ||
+      params.has("youtube_connected") ||
+      params.has("youtube_error")
+    ) {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -260,6 +270,22 @@ export default function ServersPage() {
               <HardDrive className="w-4 h-4" /> Connect Google Drive (Pro)
             </Link>
           )}
+          {user?.isPro ? (
+            <a
+              href="/api/oauth/youtube/start"
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 hover:border-primary/50 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl transition-colors"
+            >
+              <Youtube className="w-4 h-4" /> Connect YouTube
+            </a>
+          ) : (
+            <Link
+              href="/#pricing"
+              className="flex items-center gap-2 px-4 py-2.5 border border-slate-300 dark:border-slate-700 text-slate-400 text-sm font-semibold rounded-xl transition-colors"
+              title="YouTube uploads are a Pro feature"
+            >
+              <Youtube className="w-4 h-4" /> Connect YouTube (Pro)
+            </Link>
+          )}
           <button
             onClick={openAdd}
             className="flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-dark text-white text-sm font-semibold rounded-xl transition-colors"
@@ -278,6 +304,17 @@ export default function ServersPage() {
         <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 mb-4">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{gdriveError === "pro_required" ? "Google Drive is a Pro feature — upgrade to connect an account." : gdriveError}</span>
+        </div>
+      )}
+      {youtubeConnected && (
+        <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+          <CheckCircle2 className="w-4 h-4" /> YouTube connected.
+        </div>
+      )}
+      {youtubeError && (
+        <div className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400 mb-4">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{youtubeError === "pro_required" ? "YouTube uploads are a Pro feature — upgrade to connect a channel." : youtubeError}</span>
         </div>
       )}
 
@@ -311,7 +348,13 @@ export default function ServersPage() {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-primary/20 text-primary-light">
-                        {c.protocol === "gdrive" ? <HardDrive className="w-3.5 h-3.5" /> : <Server className="w-3.5 h-3.5" />}
+                        {c.protocol === "gdrive" ? (
+                          <HardDrive className="w-3.5 h-3.5" />
+                        ) : c.protocol === "youtube" ? (
+                          <Youtube className="w-3.5 h-3.5" />
+                        ) : (
+                          <Server className="w-3.5 h-3.5" />
+                        )}
                       </div>
                       <span className="font-medium text-slate-900 dark:text-white">
                         {c.label}
@@ -325,16 +368,16 @@ export default function ServersPage() {
                   </td>
                   <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden sm:table-cell">
                     <span className="uppercase text-[10px] font-semibold text-primary-light mr-1.5">
-                      {c.protocol === "gdrive" ? "DRIVE" : c.protocol === "sftp" ? "SFTP" : "FTP"}
+                      {c.protocol === "gdrive" ? "DRIVE" : c.protocol === "youtube" ? "YOUTUBE" : c.protocol === "sftp" ? "SFTP" : "FTP"}
                     </span>
-                    {c.protocol === "gdrive" ? c.host : `${c.host}${c.port ? `:${c.port}` : ""}`}
+                    {c.protocol === "gdrive" || c.protocol === "youtube" ? c.host : `${c.host}${c.port ? `:${c.port}` : ""}`}
                   </td>
                   <td className="px-5 py-3 text-slate-500 font-mono text-xs hidden md:table-cell">
-                    {c.protocol === "gdrive" ? "Chosen per transfer" : c.path}
+                    {c.protocol === "gdrive" ? "Chosen per transfer" : c.protocol === "youtube" ? "—" : c.path}
                   </td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      {c.protocol !== "gdrive" && (
+                      {c.protocol !== "gdrive" && c.protocol !== "youtube" && (
                         <button
                           onClick={() => openEdit(c)}
                           className="p-1.5 text-slate-400 hover:text-primary-light rounded-lg hover:bg-primary/10 transition-colors"

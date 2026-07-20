@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AirFTP Connect
  * Description: REST backend (auth, saved servers, transfer history, API keys, webhooks, Pro-member flag) for the AirFTP app.
- * Version: 1.2.2
+ * Version: 1.3.0
  * Author: AirFTP
  */
 

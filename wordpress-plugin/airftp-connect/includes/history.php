@@ -69,7 +69,7 @@ function airftp_transfer_config_payload($cfg) {
     }
 
     return [
-        'protocol' => (isset($cfg['protocol']) && $cfg['protocol'] === 'sftp') ? 'sftp' : 'ftp',
+        'protocol' => airftp_sanitize_protocol((string) ($cfg['protocol'] ?? '')),
         'host' => $cfg['host'] ?? '',
         'port' => (!empty($cfg['port'])) ? (int) $cfg['port'] : null,
         'user' => $cfg['user'] ?? '',

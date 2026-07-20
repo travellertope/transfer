@@ -53,7 +53,7 @@ export default function TransferForm() {
   const applySaved = (panel: "source" | "destination", id: string) => {
     const conn = connections.find((c) => c.id === id);
     if (!conn) return;
-    const path = conn.protocol === "gdrive" ? "" : conn.path;
+    const path = conn.protocol === "gdrive" ? "" : conn.protocol === "youtube" ? "uploads" : conn.path;
     if (panel === "source") {
       setSourceProtocol(conn.protocol ?? "ftp");
       setSourceHost(conn.host);
@@ -119,7 +119,7 @@ export default function TransferForm() {
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (saveSource && sourceProtocol !== "gdrive") {
+    if (saveSource && sourceProtocol !== "gdrive" && sourceProtocol !== "youtube") {
       const label = sourceLabel.trim() || sourceHost;
       saveServer(label, sourceProtocol, sourceHost, sourcePort, sourceUser, sourcePass, sourcePath).then((ok) => {
         setSourceSaveStatus(ok ? "success" : "error");
@@ -128,7 +128,7 @@ export default function TransferForm() {
       setSaveSource(false);
       setSourceLabel("");
     }
-    if (saveDest && destProtocol !== "gdrive") {
+    if (saveDest && destProtocol !== "gdrive" && destProtocol !== "youtube") {
       const label = destLabel.trim() || destHost;
       saveServer(label, destProtocol, destHost, destPort, destUser, destPass, destPath).then((ok) => {
         setDestSaveStatus(ok ? "success" : "error");
