@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, getSessionToken } from "@/lib/session";
-import { limitForUser, formatBytes, FREE_MONTHLY_TRANSFER_LIMIT } from "@/lib/limits";
+import { limitForUser, formatBytes, FREE_MONTHLY_TRANSFER_LIMIT, YOUTUBE_DAILY_UPLOAD_LIMIT } from "@/lib/limits";
 import { createTransferClient, type Protocol, type ServerConfig } from "@/lib/transferClients";
 import { createJob, jobSnapshot, jobListSnapshot, listJobsForUser } from "@/lib/jobs";
 import { enqueueJob } from "@/lib/transferWorker";
 import { addHistory, listHistory } from "@/lib/wordpress";
 
 function normalizeConfig(config: ServerConfig): ServerConfig {
-  const protocols: Protocol[] = ["ftp", "sftp", "gdrive"];
+  const protocols: Protocol[] = ["ftp", "sftp", "gdrive", "youtube", "onedrive"];
   return {
     ...config,
     protocol: protocols.includes(config.protocol) ? config.protocol : "ftp",
@@ -94,11 +94,53 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  if (source.protocol === "youtube") {
+    return NextResponse.json(
+      { success: false, error: "YouTube can only be used as a transfer destination, not a source." },
+      { status: 400 }
+    );
+  }
+
   if ((source.protocol === "gdrive" || destination.protocol === "gdrive") && !user.isPro) {
     return NextResponse.json(
       { success: false, error: "Google Drive transfers are a Pro feature. Upgrade to use them." },
       { status: 403 }
     );
+  }
+  if ((source.protocol === "onedrive" || destination.protocol === "onedrive") && !user.isPro) {
+    return NextResponse.json(
+      { success: false, error: "OneDrive transfers are a Pro feature. Upgrade to use them." },
+      { status: 403 }
+    );
+  }
+  if (destination.protocol === "youtube" && !user.isPro) {
+    return NextResponse.json(
+      { success: false, error: "YouTube uploads are a Pro feature. Upgrade to use them." },
+      { status: 403 }
+    );
+  }
+
+  if (destination.protocol === "youtube") {
+    try {
+      const history = await listHistory(token);
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      const uploadedToday = history.filter(
+        (t) => t.destination?.protocol === "youtube" && new Date(t.created_at) >= dayStart
+      ).length;
+      if (uploadedToday >= YOUTUBE_DAILY_UPLOAD_LIMIT) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "LIMIT_EXCEEDED",
+            error: `You've used all ${YOUTUBE_DAILY_UPLOAD_LIMIT} of your YouTube uploads for today. Try again tomorrow.`,
+          },
+          { status: 403 }
+        );
+      }
+    } catch {
+      /* if WP is briefly unreachable, don't block a legitimate upload over an undercount */
+    }
   }
 
   if (!user.isPro) {

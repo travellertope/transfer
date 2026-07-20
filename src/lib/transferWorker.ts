@@ -1,5 +1,5 @@
 import { PassThrough } from "stream";
-import { createTransferClient, isRetryableTransferError, type TransferClient } from "./transferClients";
+import { createTransferClient, isRetryableTransferError, type TransferClient, type Protocol } from "./transferClients";
 import { updateHistory, notifyTransferComplete, listWebhooks } from "./wordpress";
 import { dispatchWebhooksForEvent } from "./webhookDispatch";
 import { getJob, updateJob, type TransferJob } from "./jobs";
@@ -80,11 +80,12 @@ async function runJob(jobId: string): Promise<void> {
         await destClient.ensureDir(destDir);
       }
 
-      // Google Drive has no byte-offset "append to existing file" — a retry
-      // just re-uploads the file from scratch, so resume only applies to
-      // FTP/SFTP destinations.
+      // Google Drive, YouTube, and OneDrive have no byte-offset "append to
+      // existing file" support in this app — a retry just re-uploads from
+      // scratch, so resume only applies to FTP/SFTP destinations.
+      const NO_RESUME_PROTOCOLS: Protocol[] = ["gdrive", "youtube", "onedrive"];
       const resumeOffset =
-        job.attempts > 1 && job.destination.protocol !== "gdrive"
+        job.attempts > 1 && !NO_RESUME_PROTOCOLS.includes(job.destination.protocol)
           ? await sizeSafe(destClient, job.destination.path)
           : 0;
 
@@ -98,9 +99,13 @@ async function runJob(jobId: string): Promise<void> {
 
       // Drive destinations are "<folderId>" only — it needs a file name too,
       // which it doesn't have a path segment for, so borrow the source's.
+      // YouTube has no path at all — the "path" it gets is the video title,
+      // which is just the source's file name.
       const destinationPath =
         job.destination.protocol === "gdrive"
           ? `${job.destination.path}/${await sourceClient.fileName(job.source.path)}`
+          : job.destination.protocol === "youtube"
+          ? await sourceClient.fileName(job.source.path)
           : job.destination.path;
 
       updateJob(jobId, { status: "transferring", bytesTransferred: resumeOffset, bytesPerSecond: null });
@@ -136,7 +141,7 @@ async function runJob(jobId: string): Promise<void> {
 
       await Promise.all([
         sourceClient.downloadTo(pipe, job.source.path, resumeOffset),
-        destClient.uploadFrom(pipe, destinationPath, resumeOffset > 0),
+        destClient.uploadFrom(pipe, destinationPath, resumeOffset > 0, job.totalBytes ?? undefined),
       ]);
 
       sourceClient.close();

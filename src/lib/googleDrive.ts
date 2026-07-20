@@ -2,10 +2,12 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 export const GOOGLE_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+export const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
 // Needed for the userinfo call in getGoogleAccountEmail() below — without it
-// the access token only carries Drive access and userinfo returns 403.
+// the access token only carries Drive/YouTube access and userinfo returns 403.
 const GOOGLE_EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
 export const OAUTH_STATE_COOKIE = "airftp_gdrive_oauth_state";
+export const YOUTUBE_OAUTH_STATE_COOKIE = "airftp_youtube_oauth_state";
 
 function clientCredentials() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -16,18 +18,26 @@ function clientCredentials() {
   return { clientId, clientSecret };
 }
 
-export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
+function buildGoogleOAuthUrl(redirectUri: string, state: string, scope: string): string {
   const { clientId } = clientCredentials();
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: `${GOOGLE_DRIVE_SCOPE} ${GOOGLE_EMAIL_SCOPE}`,
+    scope,
     access_type: "offline",
     prompt: "consent",
     state,
   });
   return `${GOOGLE_AUTH_URL}?${params.toString()}`;
+}
+
+export function buildGoogleAuthUrl(redirectUri: string, state: string): string {
+  return buildGoogleOAuthUrl(redirectUri, state, `${GOOGLE_DRIVE_SCOPE} ${GOOGLE_EMAIL_SCOPE}`);
+}
+
+export function buildYouTubeAuthUrl(redirectUri: string, state: string): string {
+  return buildGoogleOAuthUrl(redirectUri, state, `${YOUTUBE_UPLOAD_SCOPE} ${GOOGLE_EMAIL_SCOPE}`);
 }
 
 interface TokenResponse {
