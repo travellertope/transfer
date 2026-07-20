@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Server, HardDrive, Youtube, Cloud, Trash2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { GoogleDrivePicker } from "./GoogleDrivePicker";
+import { OneDriveLinkResolver } from "./OneDriveLinkResolver";
 import type { SavedConnection } from "@/lib/wordpress";
 import type { Protocol } from "@/lib/transferClients";
 
@@ -252,23 +253,35 @@ export function ServerFieldsPanel({
               )}
 
               {savedId && (
-                <div>
-                  <label htmlFor={`${idPrefix}-path`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
-                    {pathLabel}
-                  </label>
-                  <input
-                    id={`${idPrefix}-path`}
-                    type="text"
-                    value={path}
-                    onChange={(e) => setPath(e.target.value)}
-                    placeholder={pickerMode === "file" ? "/Videos/myvideo.mp4" : "/Backups/myvideo.mp4"}
-                    className={inputClass}
-                    required
+                <div className="space-y-2">
+                  <OneDriveLinkResolver
+                    connectionId={savedId}
+                    onResolved={(resolvedPath, name) => {
+                      setPath(resolvedPath);
+                      setPathDisplayName(name);
+                    }}
                   />
-                  <p className="text-xs text-slate-500 mt-1.5">
-                    The item&apos;s folder path in your OneDrive, exactly as it appears in onedrive.com&apos;s
-                    breadcrumb — not a share link. Right-click the file → Details to see its folder.
-                  </p>
+                  <div>
+                    <label htmlFor={`${idPrefix}-path`} className="block text-sm text-slate-600 dark:text-slate-400 mb-1">
+                      {pathLabel}
+                    </label>
+                    <input
+                      id={`${idPrefix}-path`}
+                      type="text"
+                      value={path}
+                      onChange={(e) => setPath(e.target.value)}
+                      placeholder={pickerMode === "file" ? "/Videos/myvideo.mp4" : "/Backups/myvideo.mp4"}
+                      className={inputClass}
+                      required
+                    />
+                    {pathDisplayName ? (
+                      <p className="text-xs text-slate-500 mt-1.5 truncate">Resolved: {pathDisplayName}</p>
+                    ) : (
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        Paste a share link above, or type the folder path exactly as it appears in onedrive.com&apos;s breadcrumb.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </>
