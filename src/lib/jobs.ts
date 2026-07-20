@@ -118,6 +118,21 @@ export function listJobsForUser(userId: number): TransferJob[] {
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/**
+ * True if a job backed by this WP history record is still live in this
+ * process. A "in_progress" history record with no matching job here means
+ * whatever was running it died without ever reaching its outcome — most
+ * likely the server process restarted (a redeploy) mid-transfer, since jobs
+ * only ever live in memory. See /api/history's GET handler, which uses this
+ * to reconcile orphaned records instead of leaving them stuck forever.
+ */
+export function hasLiveJobForHistoryId(historyId: string): boolean {
+  for (const job of jobs.values()) {
+    if (job.historyId === historyId) return true;
+  }
+  return false;
+}
+
 /** Same as jobSnapshot, plus non-secret host/path so a list view can show a route label. */
 export function jobListSnapshot(job: TransferJob) {
   return {
