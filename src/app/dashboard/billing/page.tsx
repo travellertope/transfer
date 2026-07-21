@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Sparkles, Zap, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { PAYSTACK_PLAN_DETAILS } from "@/lib/paystack-products";
+import { PLAN_DETAILS } from "@/lib/stripe-products";
 
 export default function BillingPage() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function BillingPage() {
 
   const isPaystackPro = user?.isPro && user.billingProvider === "paystack";
   const ngnPrice = PAYSTACK_PLAN_DETAILS.pro.monthlyNgn;
+  const usdPrice = PLAN_DETAILS.pro.monthlyUsd;
 
   const openPortal = async () => {
     setPortalLoading(true);
@@ -79,7 +81,7 @@ export default function BillingPage() {
           </p>
           <p className="text-sm text-slate-500">
             {user?.isPro
-              ? `${isPaystackPro ? `₦${ngnPrice.toLocaleString()}` : "$19"} / month · Renews automatically`
+              ? `${isPaystackPro ? `₦${ngnPrice.toLocaleString()}` : `$${usdPrice}`} / month · Renews automatically`
               : "Free forever · Upgrade anytime"}
           </p>
         </div>
@@ -144,10 +146,10 @@ export default function BillingPage() {
               {user?.isPro
                 ? isPaystackPro
                   ? `₦${ngnPrice.toLocaleString()} / mo`
-                  : "$19 / mo"
+                  : `$${usdPrice} / mo`
                 : showPaystack
                   ? `₦${ngnPrice.toLocaleString()} / mo`
-                  : "$19 / mo"}
+                  : `$${usdPrice} / mo`}
             </span>
           </div>
           <ul className="space-y-2">

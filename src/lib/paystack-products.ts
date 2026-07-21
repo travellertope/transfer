@@ -6,7 +6,7 @@ export interface PaystackPlanDetails {
 }
 
 export const PAYSTACK_PLAN_DETAILS: Record<PaidPlan, PaystackPlanDetails> = {
-  pro: { name: "Pro", monthlyNgn: 9900 },
+  pro: { name: "Pro", monthlyNgn: 4900 },
 };
 
 const PLAN_ENV_KEY: Record<PaidPlan, string> = {
