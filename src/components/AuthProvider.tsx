@@ -13,6 +13,7 @@ interface AuthUser {
   email: string;
   name: string;
   isPro: boolean;
+  billingProvider: "stripe" | "paystack";
 }
 
 interface AuthContextValue {

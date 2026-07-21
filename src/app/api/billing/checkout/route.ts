@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
       customer: customer.id,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: { trial_period_days: 14 },
-      success_url: `${origin}/?upgraded=1`,
-      cancel_url: `${origin}/#pricing`,
+      success_url: `${origin}/dashboard/billing?upgraded=1`,
+      cancel_url: `${origin}/dashboard/billing`,
       client_reference_id: String(user.id),
     });
 
