@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         break;
     }
   } catch (err) {
-    console.error("AirFTP Stripe webhook handling failed:", err);
+    console.error("BluuSync Stripe webhook handling failed:", err);
     return NextResponse.json({ error: "Webhook handler failed." }, { status: 500 });
   }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateToken, WpUser } from "./wordpress";
 
-export const SESSION_COOKIE = "airftp_session";
+export const SESSION_COOKIE = "bluusync_session";
 const MAX_AGE = 30 * 24 * 60 * 60; // 30 days, matches the JWT TTL in the WP plugin
 
 export function setSessionCookie(res: NextResponse, token: string) {

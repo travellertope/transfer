@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 
 export const metadata: Metadata = {
-  title: "AirFTP — Server-to-Server File Transfer",
+  title: "BluuSync — Server-to-Server File Transfer",
   description:
     "Transfer massive files directly between servers. No downloads, no local storage, no limits. Stream gigabytes in minutes.",
 };

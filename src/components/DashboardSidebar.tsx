@@ -57,7 +57,7 @@ export default function DashboardSidebar() {
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
             <ArrowRightLeft className="w-4 h-4 text-primary-light" />
           </div>
-          <span className="text-lg font-bold text-slate-900 dark:text-white">AirFTP</span>
+          <span className="text-lg font-bold text-slate-900 dark:text-white">BluuSync</span>
         </Link>
       </div>
 
@@ -147,7 +147,7 @@ export default function DashboardSidebar() {
           <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
             <ArrowRightLeft className="w-3.5 h-3.5 text-primary-light" />
           </div>
-          <span className="font-bold text-slate-900 dark:text-white">AirFTP</span>
+          <span className="font-bold text-slate-900 dark:text-white">BluuSync</span>
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle />

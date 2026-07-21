@@ -45,7 +45,7 @@ export default function BillingPage() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-slate-900 dark:text-white">
-            {user?.isPro ? "AirFTP Pro" : "AirFTP Free"}
+            {user?.isPro ? "BluuSync Pro" : "BluuSync Free"}
           </p>
           <p className="text-sm text-slate-500">
             {user?.isPro ? "$19 / month · Renews automatically" : "Free forever · Upgrade anytime"}
@@ -120,7 +120,7 @@ export default function BillingPage() {
 
       <p className="text-xs text-slate-400 text-center mt-6">
         Need unlimited file size and team accounts?{" "}
-        <a href="mailto:sales@bluuhq.com?subject=AirFTP%20Enterprise" className="text-primary-light hover:underline">
+        <a href="mailto:sales@bluuhq.com?subject=BluuSync%20Enterprise" className="text-primary-light hover:underline">
           Contact us about Enterprise
         </a>
       </p>

@@ -79,8 +79,8 @@ async function dispatchOne(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-AirFTP-Event": event,
-        "X-AirFTP-Signature": `sha256=${signature}`,
+        "X-BluuSync-Event": event,
+        "X-BluuSync-Signature": `sha256=${signature}`,
       },
       body,
       signal: controller.signal,

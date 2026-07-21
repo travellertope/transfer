@@ -5,14 +5,14 @@ if (!defined('ABSPATH')) {
 }
 
 add_action('rest_api_init', function () {
-    register_rest_route('airftp/v1', '/notify', [
+    register_rest_route('bluusync/v1', '/notify', [
         'methods' => 'POST',
-        'callback' => 'airftp_handle_notify',
+        'callback' => 'bluusync_handle_notify',
         'permission_callback' => '__return_true',
     ]);
 });
 
-function airftp_format_bytes($bytes) {
+function bluusync_format_bytes($bytes) {
     if ($bytes >= 1073741824) return round($bytes / 1073741824, 2) . ' GB';
     if ($bytes >= 1048576) return round($bytes / 1048576, 2) . ' MB';
     if ($bytes >= 1024) return round($bytes / 1024, 2) . ' KB';
@@ -24,19 +24,19 @@ function airftp_format_bytes($bytes) {
  * A Pro perk — silently no-ops for non-Pro accounts rather than erroring,
  * since the app already gates the call but this is a server-side backstop.
  */
-function airftp_handle_notify(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_notify(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
-    if (get_user_meta($user->ID, AIRFTP_PRO_META_KEY, true) !== '1') {
+    if (get_user_meta($user->ID, BLUUSYNC_PRO_META_KEY, true) !== '1') {
         return ['success' => true, 'sent' => false];
     }
 
     $event = (string) $request->get_param('event');
     if (!in_array($event, ['transfer.success', 'transfer.failed'], true)) {
-        return new WP_Error('airftp_invalid_input', 'event must be "transfer.success" or "transfer.failed".', ['status' => 400]);
+        return new WP_Error('bluusync_invalid_input', 'event must be "transfer.success" or "transfer.failed".', ['status' => 400]);
     }
 
     $source_host = sanitize_text_field((string) $request->get_param('sourceHost'));
@@ -57,7 +57,7 @@ function airftp_handle_notify(WP_REST_Request $request) {
     ];
     if ($success && $bytes > 0) {
         $lines[] = '';
-        $lines[] = 'Size: ' . airftp_format_bytes($bytes);
+        $lines[] = 'Size: ' . bluusync_format_bytes($bytes);
     }
     if (!$success && $error) {
         $lines[] = '';

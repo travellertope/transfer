@@ -4,7 +4,7 @@ import { listConnections } from "@/lib/wordpress";
 import { refreshOneDriveToken, resolveOneDriveShareLink, getOneDriveDriveId } from "@/lib/oneDrive";
 
 /**
- * Turns a pasted OneDrive/SharePoint share link into the item path AirFTP's
+ * Turns a pasted OneDrive/SharePoint share link into the item path BluuSync's
  * path-based OneDrive addressing needs, using the saved connection's own
  * access token. The refresh token never leaves the server.
  */
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "This link points to a file outside this account's own OneDrive (shared by someone else, or in a different site's library) — AirFTP can only transfer files from the connected account's own drive.",
+            "This link points to a file outside this account's own OneDrive (shared by someone else, or in a different site's library) — BluuSync can only transfer files from the connected account's own drive.",
         },
         { status: 400 }
       );

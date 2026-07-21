@@ -194,7 +194,7 @@ export default function WebhooksPage() {
   }
 }`}</pre>
         <p className="text-xs text-slate-500 mt-3">
-          Each delivery includes an <code className="font-mono">X-AirFTP-Signature: sha256=&lt;hex&gt;</code> header —
+          Each delivery includes an <code className="font-mono">X-BluuSync-Signature: sha256=&lt;hex&gt;</code> header —
           an HMAC-SHA256 of the raw request body, signed with the webhook&apos;s own signing secret (shown below each
           webhook). Verify it to confirm the request actually came from us.
         </p>

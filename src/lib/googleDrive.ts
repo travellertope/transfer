@@ -6,8 +6,8 @@ export const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upl
 // Needed for the userinfo call in getGoogleAccountEmail() below — without it
 // the access token only carries Drive/YouTube access and userinfo returns 403.
 const GOOGLE_EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
-export const OAUTH_STATE_COOKIE = "airftp_gdrive_oauth_state";
-export const YOUTUBE_OAUTH_STATE_COOKIE = "airftp_youtube_oauth_state";
+export const OAUTH_STATE_COOKIE = "bluusync_gdrive_oauth_state";
+export const YOUTUBE_OAUTH_STATE_COOKIE = "bluusync_youtube_oauth_state";
 
 function clientCredentials() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -70,7 +70,7 @@ export async function exchangeCodeForTokens(
   if (!data.refresh_token) {
     throw new Error(
       "Google didn't return a refresh token. This can happen if you've already granted access before — " +
-        "revoke AirFTP's access at https://myaccount.google.com/permissions and try connecting again."
+        "revoke BluuSync's access at https://myaccount.google.com/permissions and try connecting again."
     );
   }
   return { accessToken: data.access_token, refreshToken: data.refresh_token, expiresIn: data.expires_in };

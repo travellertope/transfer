@@ -5,15 +5,15 @@ if (!defined('ABSPATH')) {
 }
 
 add_action('rest_api_init', function () {
-    register_rest_route('airftp/v1', '/user', [
+    register_rest_route('bluusync/v1', '/user', [
         'methods' => 'PUT',
-        'callback' => 'airftp_handle_update_user',
+        'callback' => 'bluusync_handle_update_user',
         'permission_callback' => '__return_true',
     ]);
 });
 
-function airftp_handle_update_user(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_update_user(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
@@ -27,10 +27,10 @@ function airftp_handle_update_user(WP_REST_Request $request) {
 
     if ($new_password !== '') {
         if (!wp_check_password($current_password, $user->user_pass, $user->ID)) {
-            return new WP_Error('airftp_invalid_credentials', 'Current password is incorrect.', ['status' => 401]);
+            return new WP_Error('bluusync_invalid_credentials', 'Current password is incorrect.', ['status' => 401]);
         }
         if (strlen($new_password) < 8) {
-            return new WP_Error('airftp_invalid_input', 'New password must be at least 8 characters.', ['status' => 400]);
+            return new WP_Error('bluusync_invalid_input', 'New password must be at least 8 characters.', ['status' => 400]);
         }
         $update['user_pass'] = $new_password;
     }
@@ -42,11 +42,11 @@ function airftp_handle_update_user(WP_REST_Request $request) {
     if ($email !== null && $email !== '' && $email !== $user->user_email) {
         $email = sanitize_email((string) $email);
         if (!is_email($email)) {
-            return new WP_Error('airftp_invalid_input', 'A valid email is required.', ['status' => 400]);
+            return new WP_Error('bluusync_invalid_input', 'A valid email is required.', ['status' => 400]);
         }
         $existing_id = email_exists($email);
         if ($existing_id && (int) $existing_id !== (int) $user->ID) {
-            return new WP_Error('airftp_email_exists', 'An account with that email already exists.', ['status' => 409]);
+            return new WP_Error('bluusync_email_exists', 'An account with that email already exists.', ['status' => 409]);
         }
         $update['user_email'] = $email;
     }
@@ -58,5 +58,5 @@ function airftp_handle_update_user(WP_REST_Request $request) {
 
     $updated = get_user_by('id', $user->ID);
 
-    return ['user' => airftp_user_payload($updated)];
+    return ['user' => bluusync_user_payload($updated)];
 }

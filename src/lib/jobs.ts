@@ -14,7 +14,7 @@ export interface TransferJob {
   userId: number;
   wpToken: string;
   isPro: boolean;
-  /** The app's own origin (e.g. https://airftp.example.com), captured at job creation for building links in completion emails sent later from the background worker, which has no request of its own. */
+  /** The app's own origin (e.g. https://bluusync.example.com), captured at job creation for building links in completion emails sent later from the background worker, which has no request of its own. */
   appOrigin: string;
   /** WP history record id — the initial "in_progress" record is written before the job is ever created (see POST /api/transfer), so the worker can update that same record on completion instead of creating a new one. */
   historyId: string;

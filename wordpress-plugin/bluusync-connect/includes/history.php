@@ -4,31 +4,31 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('AIRFTP_HISTORY_LIMIT', 100);
+define('BLUUSYNC_HISTORY_LIMIT', 100);
 
 add_action('rest_api_init', function () {
-    register_rest_route('airftp/v1', '/history', [
+    register_rest_route('bluusync/v1', '/history', [
         [
             'methods' => 'GET',
-            'callback' => 'airftp_handle_list_history',
+            'callback' => 'bluusync_handle_list_history',
             'permission_callback' => '__return_true',
         ],
         [
             'methods' => 'POST',
-            'callback' => 'airftp_handle_add_history',
+            'callback' => 'bluusync_handle_add_history',
             'permission_callback' => '__return_true',
         ],
     ]);
 
-    register_rest_route('airftp/v1', '/history/(?P<id>[a-zA-Z0-9\-]+)', [
+    register_rest_route('bluusync/v1', '/history/(?P<id>[a-zA-Z0-9\-]+)', [
         'methods' => 'PUT',
-        'callback' => 'airftp_handle_update_history',
+        'callback' => 'bluusync_handle_update_history',
         'permission_callback' => '__return_true',
     ]);
 });
 
-function airftp_get_user_history($user_id) {
-    $history = get_user_meta($user_id, AIRFTP_HISTORY_META_KEY, true);
+function bluusync_get_user_history($user_id) {
+    $history = get_user_meta($user_id, BLUUSYNC_HISTORY_META_KEY, true);
     return is_array($history) ? $history : [];
 }
 
@@ -38,7 +38,7 @@ function airftp_get_user_history($user_id) {
  * Returns null if the input doesn't look like a usable config (e.g. an
  * older client that didn't send one).
  */
-function airftp_sanitize_transfer_config($param) {
+function bluusync_sanitize_transfer_config($param) {
     if (!is_array($param)) {
         return null;
     }
@@ -53,32 +53,32 @@ function airftp_sanitize_transfer_config($param) {
     }
 
     return [
-        'protocol' => airftp_sanitize_protocol((string) ($param['protocol'] ?? '')),
+        'protocol' => bluusync_sanitize_protocol((string) ($param['protocol'] ?? '')),
         'host' => $host,
         'port' => (!empty($param['port'])) ? (int) $param['port'] : null,
         'user' => $ftp_user,
-        'password' => $password !== '' ? airftp_encrypt($password) : '',
+        'password' => $password !== '' ? bluusync_encrypt($password) : '',
         'path' => $path,
     ];
 }
 
 /** Decrypts a stored config back into a usable server config for the app. */
-function airftp_transfer_config_payload($cfg) {
+function bluusync_transfer_config_payload($cfg) {
     if (!is_array($cfg)) {
         return null;
     }
 
     return [
-        'protocol' => airftp_sanitize_protocol((string) ($cfg['protocol'] ?? '')),
+        'protocol' => bluusync_sanitize_protocol((string) ($cfg['protocol'] ?? '')),
         'host' => $cfg['host'] ?? '',
         'port' => (!empty($cfg['port'])) ? (int) $cfg['port'] : null,
         'user' => $cfg['user'] ?? '',
-        'password' => !empty($cfg['password']) ? airftp_decrypt($cfg['password']) : '',
+        'password' => !empty($cfg['password']) ? bluusync_decrypt($cfg['password']) : '',
         'path' => $cfg['path'] ?? '',
     ];
 }
 
-function airftp_history_payload($record) {
+function bluusync_history_payload($record) {
     return [
         'id' => $record['id'],
         'created_at' => $record['created_at'],
@@ -91,31 +91,31 @@ function airftp_history_payload($record) {
         'error' => $record['error'],
         // Only present for transfers recorded after retry support shipped —
         // older entries retryable=false since there's nothing to retry with.
-        'source' => isset($record['source']) ? airftp_transfer_config_payload($record['source']) : null,
-        'destination' => isset($record['destination']) ? airftp_transfer_config_payload($record['destination']) : null,
+        'source' => isset($record['source']) ? bluusync_transfer_config_payload($record['source']) : null,
+        'destination' => isset($record['destination']) ? bluusync_transfer_config_payload($record['destination']) : null,
     ];
 }
 
-function airftp_handle_list_history(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_list_history(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
-    $history = array_reverse(airftp_get_user_history($user->ID));
+    $history = array_reverse(bluusync_get_user_history($user->ID));
 
-    return ['transfers' => array_map('airftp_history_payload', $history)];
+    return ['transfers' => array_map('bluusync_history_payload', $history)];
 }
 
-function airftp_handle_add_history(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_add_history(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $status = (string) $request->get_param('status');
     if (!in_array($status, ['in_progress', 'success', 'failed'], true)) {
-        return new WP_Error('airftp_invalid_input', 'status must be "in_progress", "success", or "failed".', ['status' => 400]);
+        return new WP_Error('bluusync_invalid_input', 'status must be "in_progress", "success", or "failed".', ['status' => 400]);
     }
 
     $entry = [
@@ -128,20 +128,20 @@ function airftp_handle_add_history(WP_REST_Request $request) {
         'bytes' => (int) $request->get_param('bytes'),
         'status' => $status,
         'error' => sanitize_text_field((string) $request->get_param('error')),
-        'source' => airftp_sanitize_transfer_config($request->get_param('source')),
-        'destination' => airftp_sanitize_transfer_config($request->get_param('destination')),
+        'source' => bluusync_sanitize_transfer_config($request->get_param('source')),
+        'destination' => bluusync_sanitize_transfer_config($request->get_param('destination')),
     ];
 
-    $history = airftp_get_user_history($user->ID);
+    $history = bluusync_get_user_history($user->ID);
     $history[] = $entry;
 
-    if (count($history) > AIRFTP_HISTORY_LIMIT) {
-        $history = array_slice($history, -AIRFTP_HISTORY_LIMIT);
+    if (count($history) > BLUUSYNC_HISTORY_LIMIT) {
+        $history = array_slice($history, -BLUUSYNC_HISTORY_LIMIT);
     }
 
-    update_user_meta($user->ID, AIRFTP_HISTORY_META_KEY, $history);
+    update_user_meta($user->ID, BLUUSYNC_HISTORY_META_KEY, $history);
 
-    return ['transfer' => airftp_history_payload($entry)];
+    return ['transfer' => bluusync_history_payload($entry)];
 }
 
 /**
@@ -152,14 +152,14 @@ function airftp_handle_add_history(WP_REST_Request $request) {
  * restart, crash) still leaves a visible trace instead of vanishing with
  * nothing ever recorded.
  */
-function airftp_handle_update_history(WP_REST_Request $request) {
-    $user = airftp_authenticate_request($request);
+function bluusync_handle_update_history(WP_REST_Request $request) {
+    $user = bluusync_authenticate_request($request);
     if (is_wp_error($user)) {
         return $user;
     }
 
     $id = (string) $request->get_param('id');
-    $history = airftp_get_user_history($user->ID);
+    $history = bluusync_get_user_history($user->ID);
 
     $index = null;
     foreach ($history as $i => $h) {
@@ -169,7 +169,7 @@ function airftp_handle_update_history(WP_REST_Request $request) {
         }
     }
     if ($index === null) {
-        return new WP_Error('airftp_not_found', 'History record not found.', ['status' => 404]);
+        return new WP_Error('bluusync_not_found', 'History record not found.', ['status' => 404]);
     }
 
     $existing = $history[$index];
@@ -177,7 +177,7 @@ function airftp_handle_update_history(WP_REST_Request $request) {
     $status = $request->get_param('status');
     if ($status !== null) {
         if (!in_array($status, ['in_progress', 'success', 'failed'], true)) {
-            return new WP_Error('airftp_invalid_input', 'status must be "in_progress", "success", or "failed".', ['status' => 400]);
+            return new WP_Error('bluusync_invalid_input', 'status must be "in_progress", "success", or "failed".', ['status' => 400]);
         }
         $existing['status'] = $status;
     }
@@ -193,7 +193,7 @@ function airftp_handle_update_history(WP_REST_Request $request) {
     }
 
     $history[$index] = $existing;
-    update_user_meta($user->ID, AIRFTP_HISTORY_META_KEY, $history);
+    update_user_meta($user->ID, BLUUSYNC_HISTORY_META_KEY, $history);
 
-    return ['transfer' => airftp_history_payload($existing)];
+    return ['transfer' => bluusync_history_payload($existing)];
 }
