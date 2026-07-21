@@ -5,6 +5,7 @@ export interface WpUser {
   email: string;
   name: string;
   isPro: boolean;
+  billingProvider: "stripe" | "paystack";
 }
 
 interface WpAuthResponse {
@@ -343,4 +344,53 @@ export async function setUserPro(email: string, isPro: boolean): Promise<WpUser>
   });
   const data = await parseOrThrow<{ user: WpUser }>(res);
   return data.user;
+}
+
+function adminSecretHeader(): string {
+  const adminSecret = process.env.WORDPRESS_ADMIN_SECRET;
+  if (!adminSecret) {
+    throw new Error("WORDPRESS_ADMIN_SECRET environment variable is not set.");
+  }
+  return adminSecret;
+}
+
+/** Syncs a Paystack billing event to the matching WP user. Pass whichever
+ *  lookup key the event actually carries (email, customerCode, or
+ *  subscriptionCode — see bluusync_handle_paystack_sync in the WP plugin for
+ *  why they differ per event type) plus whichever fields should be updated. */
+export async function syncPaystackBilling(params: {
+  email?: string;
+  customerCode?: string;
+  subscriptionCode?: string;
+  isPro?: boolean;
+  billingProvider?: "stripe" | "paystack";
+  emailToken?: string;
+}): Promise<WpUser> {
+  const res = await fetch(wpUrl("/paystack/sync"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-BluuSync-Admin-Secret": adminSecretHeader(),
+    },
+    body: JSON.stringify(params),
+  });
+  const data = await parseOrThrow<{ user: WpUser }>(res);
+  return data.user;
+}
+
+/** Server-to-server only — fetches the Paystack subscription/email-token
+ *  pair needed to call Paystack's /subscription/disable endpoint. Never
+ *  forward these values to the browser. */
+export async function lookupPaystackSubscription(
+  email: string
+): Promise<{ subscriptionCode: string | null; emailToken: string | null }> {
+  const res = await fetch(wpUrl("/paystack/lookup"), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-BluuSync-Admin-Secret": adminSecretHeader(),
+    },
+    body: JSON.stringify({ email }),
+  });
+  return parseOrThrow<{ subscriptionCode: string | null; emailToken: string | null }>(res);
 }

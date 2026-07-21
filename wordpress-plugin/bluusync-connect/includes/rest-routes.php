@@ -42,6 +42,7 @@ function bluusync_user_payload($user) {
         'email' => $user->user_email,
         'name' => $user->display_name,
         'isPro' => get_user_meta($user->ID, BLUUSYNC_PRO_META_KEY, true) === '1',
+        'billingProvider' => get_user_meta($user->ID, BLUUSYNC_BILLING_PROVIDER_META_KEY, true) ?: 'stripe',
     ];
 }
 

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BluuSync Connect
  * Description: REST backend (auth, saved servers, transfer history, API keys, webhooks, Pro-member flag) for the BluuSync app.
- * Version: 1.4.0
+ * Version: 1.5.0
  * Author: BluuSync
  */
 
@@ -14,6 +14,10 @@ define('BLUUSYNC_JWT_OPTION', 'bluusync_jwt_secret');
 define('BLUUSYNC_ENC_OPTION', 'bluusync_enc_secret');
 define('BLUUSYNC_ADMIN_SECRET_OPTION', 'bluusync_admin_secret');
 define('BLUUSYNC_PRO_META_KEY', 'bluusync_pro');
+define('BLUUSYNC_BILLING_PROVIDER_META_KEY', 'bluusync_billing_provider');
+define('BLUUSYNC_PAYSTACK_CUSTOMER_CODE_META_KEY', 'bluusync_paystack_customer_code');
+define('BLUUSYNC_PAYSTACK_SUBSCRIPTION_CODE_META_KEY', 'bluusync_paystack_subscription_code');
+define('BLUUSYNC_PAYSTACK_EMAIL_TOKEN_META_KEY', 'bluusync_paystack_email_token');
 define('BLUUSYNC_CONNECTIONS_META_KEY', 'bluusync_connections');
 define('BLUUSYNC_HISTORY_META_KEY', 'bluusync_history');
 define('BLUUSYNC_API_KEYS_META_KEY', 'bluusync_api_keys');
